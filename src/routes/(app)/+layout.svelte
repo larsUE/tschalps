@@ -20,20 +20,25 @@
 
 <div class="flex min-h-dvh flex-col bg-stone-50 text-stone-900">
 	<header class="border-b border-stone-200 bg-white">
-		<div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+		<div
+			class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 sm:flex-nowrap sm:py-3"
+		>
 			<a href={resolve('/(app)')} class="text-lg font-bold tracking-tight">Tschalps</a>
-			<nav class="flex flex-1 flex-wrap gap-1 text-sm">
+			<!-- Phones: own scrollable row below logo and logout. Larger screens: inline. -->
+			<nav
+				class="order-last -mx-3 flex basis-full gap-1 overflow-x-auto text-sm sm:order-none sm:mx-0 sm:flex-1 sm:basis-auto"
+			>
 				{#each links as link (link.href)}
 					<a
 						href={link.href}
 						aria-current={isActive(link.href) ? 'page' : undefined}
-						class="rounded-md px-3 py-1.5 text-stone-600 hover:bg-stone-100 hover:text-stone-900 aria-[current=page]:bg-emerald-50 aria-[current=page]:text-emerald-800"
+						class="rounded-md px-3 py-1.5 whitespace-nowrap text-stone-600 hover:bg-stone-100 hover:text-stone-900 aria-[current=page]:bg-emerald-50 aria-[current=page]:text-emerald-800"
 					>
 						{link.label}
 					</a>
 				{/each}
 			</nav>
-			<div class="flex items-center gap-3 text-sm">
+			<div class="ml-auto flex items-center gap-3 text-sm">
 				<span class="hidden text-stone-500 sm:inline">{data.user.name || data.user.email}</span>
 				<form method="POST" action="/logout">
 					<button
