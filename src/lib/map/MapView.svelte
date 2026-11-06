@@ -19,11 +19,13 @@
 	type Props = {
 		basemap: BasemapId;
 		overlays: OverlayId[];
+		/** Initial view [minLng, minLat, maxLng, maxLat]; defaults to the Swiss Alps. */
+		initialBounds?: [number, number, number, number] | null;
 		/** Rendered once the map is ready; children use getMapContext(). */
 		children?: Snippet;
 	};
 
-	let { basemap, overlays, children }: Props = $props();
+	let { basemap, overlays, initialBounds = null, children }: Props = $props();
 
 	const LOCALE_DE = {
 		'NavigationControl.ZoomIn': 'Hineinzoomen',
@@ -56,8 +58,13 @@
 			instance = new maplibre.Map({
 				container,
 				style: buildStyle(basemap, overlays),
-				bounds: ALPS_BOUNDS,
-				fitBoundsOptions: { padding: 20 },
+				bounds: initialBounds
+					? [
+							[initialBounds[0], initialBounds[1]],
+							[initialBounds[2], initialBounds[3]]
+						]
+					: ALPS_BOUNDS,
+				fitBoundsOptions: { padding: 40, maxZoom: 15 },
 				minZoom: 6,
 				maxZoom: 19,
 				maxPitch: 0,

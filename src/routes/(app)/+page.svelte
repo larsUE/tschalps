@@ -1,44 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import MapView from '#lib/map/MapView.svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import LayerSwitcher from '#lib/map/LayerSwitcher.svelte';
-	import {
-		DEFAULT_BASEMAP,
-		OVERLAYS,
-		isBasemapId,
-		type BasemapId,
-		type OverlayId
-	} from '#lib/map/basemaps.ts';
+	import MapView from '#lib/map/MapView.svelte';
+	import RouteLayer, { type RouteProps } from '#lib/map/RouteLayer.svelte';
+	import { mapPreferences } from '#lib/map/preferences.svelte.ts';
 
-	const STORAGE_KEY = 'tschalps.map';
+	const prefs = mapPreferences();
 
-	let basemap = $state<BasemapId>(DEFAULT_BASEMAP);
-	let overlays = $state<OverlayId[]>([]);
-	let restored = $state(false);
-
-	// Remember the chosen base map per browser (a convenience only, so failures are ignored).
-	onMount(() => {
-		try {
-			const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-			if (isBasemapId(saved.basemap)) basemap = saved.basemap;
-			if (Array.isArray(saved.overlays)) {
-				overlays = OVERLAYS.map((o) => o.id).filter((id) => saved.overlays.includes(id));
-			}
-		} catch {
-			/* storage unavailable */
-		}
-		restored = true;
-	});
-
-	$effect(() => {
-		const value = JSON.stringify({ basemap, overlays });
-		if (!restored) return;
-		try {
-			localStorage.setItem(STORAGE_KEY, value);
-		} catch {
-			/* storage unavailable */
-		}
-	});
+	/** Hovered tour (all its days are highlighted). */
+	let hovered = $state<RouteProps | null>(null);
 </script>
 
 <svelte:head>
@@ -46,6 +17,23 @@
 </svelte:head>
 
 <div class="relative min-h-[60vh] flex-1">
-	<MapView {basemap} {overlays} />
-	<LayerSwitcher bind:basemap bind:overlays />
+	<MapView basemap={prefs.basemap} overlays={prefs.overlays}>
+		<RouteLayer
+			id="routes"
+			data={resolve('/api/routes')}
+			highlight={hovered?.key ?? null}
+			onhover={(p) => (hovered = p)}
+			onclick={(p) => goto(resolve('/(app)/tschalps/[slug]', { slug: String(p.slug) }))}
+		/>
+	</MapView>
+	<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
+
+	{#if hovered}
+		<div
+			class="pointer-events-none absolute bottom-8 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-white px-3 py-2 text-sm shadow-lg ring-1 ring-black/10"
+		>
+			<span class="font-semibold">{hovered.title}</span>
+			<span class="text-stone-500">· {hovered.year} · Tag {hovered.dayIndex}</span>
+		</div>
+	{/if}
 </div>

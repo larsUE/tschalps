@@ -38,7 +38,7 @@ Without `SMTP_HOST`, e-mails (login codes, invitations) are printed to the dev s
 
 1. Install Node 24 LTS and build-essential (needed by `better-sqlite3`).
 2. Copy the project to e.g. `/srv/tschalps`, then run `npm ci && npm run build`.
-3. Create `/srv/tschalps/.env` with the production values: `ORIGIN=https://…`, a fresh `BETTER_AUTH_SECRET`, absolute paths for `DATABASE_URL`/`UPLOAD_DIR`, and Infomaniak SMTP credentials.
+3. Create `/srv/tschalps/.env` with the production values: `ORIGIN=https://…`, a fresh `BETTER_AUTH_SECRET`, absolute paths for `DATABASE_URL`/`UPLOAD_DIR`, `BODY_SIZE_LIMIT=25M` (GPX uploads; the default is 512K), and Infomaniak SMTP credentials.
 4. Run `npm run admin:create -- …` once.
 5. Run `node --env-file=.env build` under systemd (it listens on `PORT`, default 3000), behind Caddy or nginx for HTTPS. The `drizzle/` folder must sit next to `build/`, because migrations run on startup.
 6. Back up nightly: `sqlite3 data/tschalps.db ".backup data/backup.db"`, then copy the backup and `data/uploads` to Swiss Backup.

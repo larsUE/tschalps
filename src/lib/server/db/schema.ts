@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
+import type { StageGeometry } from '#lib/geo.ts';
 
 export * from './auth.schema';
 
@@ -25,7 +26,7 @@ const updatedAt = () =>
 /** Author reference: authorship survives when a member account is removed. */
 const userRef = (name: string) => text(name).references(() => user.id, { onDelete: 'set null' });
 
-export type LineStringGeometry = { type: 'LineString'; coordinates: [number, number, number?][] };
+export type { StageGeometry } from '#lib/geo.ts';
 
 // Archive --------------------------------------------------------------------
 
@@ -73,7 +74,7 @@ export const stage = sqliteTable(
 		title: text('title'),
 		reportMd: text('report_md'),
 		gpxPath: text('gpx_path'), // original file, relative to UPLOAD_DIR
-		geojson: text('geojson', { mode: 'json' }).$type<LineStringGeometry>(), // simplified for display
+		geojson: text('geojson', { mode: 'json' }).$type<StageGeometry>(), // simplified for display
 		minLng: real('min_lng'),
 		minLat: real('min_lat'),
 		maxLng: real('max_lng'),
