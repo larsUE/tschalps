@@ -198,3 +198,31 @@ export function toGpx(name: string, tracks: GpxTrack[]): string {
 	lines.push('</gpx>');
 	return lines.join('\n');
 }
+
+export type Waypoint = {
+	name: string;
+	lat: number;
+	lng: number;
+	ele?: number | null;
+	description?: string | null;
+	type?: string;
+};
+
+/** Places as GPX waypoints, e.g. to load all known stables onto a GPS before a tour. */
+export function toWaypointsGpx(name: string, waypoints: Waypoint[]): string {
+	const lines = [
+		'<?xml version="1.0" encoding="UTF-8"?>',
+		'<gpx version="1.1" creator="Tschalps" xmlns="http://www.topografix.com/GPX/1/1">',
+		`<metadata><name>${escapeXml(name)}</name></metadata>`
+	];
+	for (const w of waypoints) {
+		let wpt = `<wpt lat="${w.lat}" lon="${w.lng}">`;
+		if (w.ele != null) wpt += `<ele>${Math.round(w.ele)}</ele>`;
+		wpt += `<name>${escapeXml(w.name)}</name>`;
+		if (w.description) wpt += `<desc>${escapeXml(w.description)}</desc>`;
+		if (w.type) wpt += `<type>${escapeXml(w.type)}</type>`;
+		lines.push(`${wpt}</wpt>`);
+	}
+	lines.push('</gpx>');
+	return lines.join('\n');
+}

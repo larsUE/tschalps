@@ -254,6 +254,22 @@
 								{formatKm(s.distanceM)} · ↑{formatM(s.ascentM)} · ↓{formatM(s.descentM)}
 							</span>
 						</button>
+						{#if s.nightPlaceId}
+							<a
+								href={resolve('/(app)/orte/[id]', { id: s.nightPlaceId })}
+								class="col-start-2 -mt-1.5 mb-2 flex items-center gap-1.5 text-[13px] text-place hover:underline"
+							>
+								<svg
+									class="size-3.5"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									aria-hidden="true"><path d="M3 11 L12 4 L21 11 V20 H3 Z" /></svg
+								>
+								Übernachtung: {s.nightPlaceName}
+							</a>
+						{/if}
 						<a
 							href={resolve('/api/gpx/stage/[id]', { id: s.id })}
 							download

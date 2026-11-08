@@ -183,3 +183,35 @@ const int = new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 });
 export const formatKm = (m: number | null | undefined) =>
 	m == null ? '–' : `${km.format(m / 1000)} km`;
 export const formatM = (m: number | null | undefined) => (m == null ? '–' : `${int.format(m)} m`);
+
+// Swiss coordinates ---------------------------------------------------------
+
+/**
+ * WGS84 → Swiss LV95 (E/N in metres), swisstopo's approximate formula (≈1 m accuracy).
+ * Used for the swisstopo height service and to show the coordinates Swiss maps print.
+ */
+export function wgs84ToLv95(lat: number, lng: number) {
+	const phi = (lat * 3600 - 169028.66) / 10000;
+	const lambda = (lng * 3600 - 26782.5) / 10000;
+	const e =
+		2600072.37 +
+		211455.93 * lambda -
+		10938.51 * lambda * phi -
+		0.36 * lambda * phi ** 2 -
+		44.54 * lambda ** 3;
+	const n =
+		1200147.07 +
+		308807.95 * phi +
+		3745.25 * lambda ** 2 +
+		76.63 * phi ** 2 -
+		194.56 * lambda ** 2 * phi +
+		119.79 * phi ** 3;
+	return { e, n };
+}
+
+const lv95Format = new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 });
+/** "2'700'000 / 1'100'000", as printed on Swiss maps. */
+export const formatLv95 = (lat: number, lng: number) => {
+	const { e, n } = wgs84ToLv95(lat, lng);
+	return `${lv95Format.format(e)} / ${lv95Format.format(n)}`;
+};

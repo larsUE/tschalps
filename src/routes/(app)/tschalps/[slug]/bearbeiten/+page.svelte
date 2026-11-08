@@ -9,6 +9,10 @@
 
 	let { data, form }: PageProps = $props();
 
+	/** Distance from the end of the day, e.g. "350 m" or "1.2 km". */
+	const distanceLabel = (m: number) =>
+		m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
+
 	let uploading = $state(false);
 
 	const card = 'card flex flex-col gap-5 p-5 sm:p-6';
@@ -105,6 +109,33 @@
 							aria-label="Datum von Tag {s.dayIndex}"
 							class="field w-auto text-[15px]"
 						/>
+						<div class="flex w-full flex-wrap items-end gap-2">
+							<label class="min-w-0 flex-1">
+								<span class="mb-1 block text-[13px] text-muted"
+									>Übernachtung nach Tag {s.dayIndex}</span
+								>
+								<select name="nightPlaceId" value={s.nightPlaceId ?? ''} class="field text-[15px]">
+									<option value="">– kein Ort –</option>
+									{#each s.nightOptions as o (o.id)}
+										<option value={o.id}
+											>{o.name}{Number.isFinite(o.distanceM)
+												? ` (${distanceLabel(o.distanceM)})`
+												: ''}</option
+										>
+									{/each}
+								</select>
+							</label>
+							{#if s.end}
+								<a
+									href={resolve(
+										`/(app)/orte/neu?${new URLSearchParams({ lat: s.end.lat.toFixed(6), lng: s.end.lng.toFixed(6), etappe: s.id })}`
+									)}
+									class="btn btn-outline btn-sm min-h-11"
+								>
+									Neuer Ort
+								</a>
+							{/if}
+						</div>
 						<button class="btn btn-outline btn-sm min-h-11"> Speichern </button>
 						<button
 							formaction="?/deleteStage"

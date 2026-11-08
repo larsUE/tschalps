@@ -2,7 +2,8 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { resolve } from '$app/paths';
 import { db } from '#lib/server/db/index.ts';
-import { stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
+import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
+import { getPlace, placesNear } from '#lib/server/places.ts';
 import { removeUpload } from '#lib/server/storage.ts';
 import {
 	canEditTour,
@@ -16,6 +17,9 @@ import {
 } from '#lib/server/tours.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
 import type { Actions, PageServerLoad } from './$types';
+
+/** Places within this distance of a day's end are offered as that night's place. */
+const NIGHT_RADIUS_M = 3000;
 
 function editableTour(slug: string, sessionUser: SessionUser | undefined) {
 	const t = db.select().from(tour).where(eq(tour.slug, slug)).get();
@@ -58,14 +62,28 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			endDate: t.endDate,
 			summaryMd: t.summaryMd
 		},
-		stages: stagesOf(t.id).map((s) => ({
-			id: s.id,
-			dayIndex: s.dayIndex,
-			date: s.date,
-			title: s.title,
-			distanceM: s.distanceM,
-			ascentM: s.ascentM
-		})),
+		stages: stagesOf(t.id).map((s) => {
+			// Where the day ends: suggest places to sleep nearby.
+			const last = s.geojson?.coordinates.at(-1)?.at(-1);
+			const end = last ? { lng: last[0], lat: last[1] } : null;
+			const nearby = end ? placesNear(end.lat, end.lng, NIGHT_RADIUS_M) : [];
+			const linked = s.nightPlaceId ? getPlace(s.nightPlaceId) : undefined;
+			const options = nearby.map((p) => ({ id: p.id, name: p.name, distanceM: p.distanceM }));
+			if (linked && !options.some((o) => o.id === linked.id)) {
+				options.unshift({ id: linked.id, name: linked.name, distanceM: NaN });
+			}
+			return {
+				id: s.id,
+				dayIndex: s.dayIndex,
+				date: s.date,
+				title: s.title,
+				distanceM: s.distanceM,
+				ascentM: s.ascentM,
+				nightPlaceId: s.nightPlaceId,
+				end,
+				nightOptions: options
+			};
+		}),
 		members
 	};
 };
@@ -131,10 +149,15 @@ export const actions: Actions = {
 		if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 			return fail(400, { action: 'stages', errors: ['Ungültiges Datum.'] });
 		}
+		const nightPlaceId = String(form.get('nightPlaceId') ?? '') || null;
+		if (nightPlaceId) {
+			const p = db.select({ id: place.id }).from(place).where(eq(place.id, nightPlaceId)).get();
+			if (!p) return fail(400, { action: 'stages', errors: ['Diesen Ort gibt es nicht.'] });
+		}
 
 		db.transaction((tx) => {
 			tx.update(stage)
-				.set({ title, date })
+				.set({ title, date, nightPlaceId })
 				.where(and(eq(stage.id, id), eq(stage.tourId, t.id)))
 				.run();
 			renumberStages(t.id, tx);

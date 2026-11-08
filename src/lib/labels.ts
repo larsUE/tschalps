@@ -51,3 +51,34 @@ export function yearColors(years: Iterable<number>): Map<number, string> {
 	const sorted = [...new Set(years)].sort((a, b) => b - a);
 	return new Map(sorted.map((y, i) => [y, YEAR_COLORS[i % YEAR_COLORS.length]]));
 }
+
+// Places ---------------------------------------------------------------------
+
+export const PLACE_TYPE_LABELS = {
+	stall: 'Stall',
+	scheune: 'Scheune',
+	huette: 'Hütte',
+	biwak: 'Biwak',
+	wasser: 'Wasser',
+	anderes: 'Anderes'
+} as const;
+
+export type PlaceType = keyof typeof PLACE_TYPE_LABELS;
+
+/** Marker colours: places to sleep in the place blue, water in water blue. */
+export const PLACE_TYPE_COLORS: Record<PlaceType, string> = {
+	stall: '#1e4f7a',
+	scheune: '#1e4f7a',
+	huette: '#6e4c9e',
+	biwak: '#8a5a2b',
+	wasser: '#3d8fc6',
+	anderes: '#59615b'
+};
+
+export const PLACE_STATUS_LABELS = {
+	aktiv: 'Aktiv',
+	existiert_nicht_mehr: 'Existiert nicht mehr',
+	unbekannt: 'Status unbekannt'
+} as const;
+
+export type PlaceStatus = keyof typeof PLACE_STATUS_LABELS;

@@ -1,4 +1,5 @@
 import { and, asc, eq, ne, sql } from 'drizzle-orm';
+import { formText } from './forms.ts';
 import { db } from '#lib/server/db/index.ts';
 import { stage, tour, tourParticipant, SEASONS } from '#lib/server/db/schema.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
@@ -41,7 +42,7 @@ export type TourFields = {
 
 /** Validates the tour metadata fields. Returns field values (for re-filling the form) and errors. */
 export function readTourFields(form: FormData) {
-	const str = (key: string) => String(form.get(key) ?? '').trim();
+	const str = (key: string) => formText(form, key);
 	const values = {
 		title: str('title'),
 		year: str('year'),

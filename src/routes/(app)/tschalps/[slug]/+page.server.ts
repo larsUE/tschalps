@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
+import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
 import { canEditTour } from '#lib/server/tours.ts';
 import type { PageServerLoad } from './$types';
 
@@ -24,9 +24,13 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			ascentM: stage.ascentM,
 			descentM: stage.descentM,
 			minEle: stage.minEle,
-			maxEle: stage.maxEle
+			maxEle: stage.maxEle,
+			nightPlaceId: place.id,
+			nightPlaceName: place.name
 		})
 		.from(stage)
+		// Removed places are not shown as a night's place.
+		.leftJoin(place, and(eq(place.id, stage.nightPlaceId), isNull(place.deletedAt)))
 		.where(eq(stage.tourId, t.id))
 		.orderBy(asc(stage.dayIndex))
 		.all();

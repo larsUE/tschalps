@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { FilterSpecification } from 'maplibre-gl';
 	import FitBounds from '#lib/map/FitBounds.svelte';
 	import LayerSwitcher from '#lib/map/LayerSwitcher.svelte';
 	import MapView from '#lib/map/MapView.svelte';
+	import PlaceLayer from '#lib/map/PlaceLayer.svelte';
 	import RouteLayer, { type RouteProps } from '#lib/map/RouteLayer.svelte';
 	import { mapPreferences } from '#lib/map/preferences.svelte.ts';
 	import { formatKm, formatM } from '#lib/geo.ts';
@@ -172,6 +174,11 @@
 					hovered = p ? String(p.slug) : null;
 				}}
 				onclick={(p) => (selected = String(p.slug))}
+			/>
+			<PlaceLayer
+				data={resolve('/api/places')}
+				small
+				onclick={(p) => goto(resolve('/(app)/orte/[id]', { id: p.key }))}
 			/>
 			<FitBounds bounds={current?.bbox ?? null} />
 		</MapView>

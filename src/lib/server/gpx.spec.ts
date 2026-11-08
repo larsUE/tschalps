@@ -166,3 +166,35 @@ describe('toGpx', () => {
 		expect(parsed.tracks[0].segments[0][0].time).toBe(Date.parse('2024-07-08T06:00:00Z'));
 	});
 });
+
+describe('swiss coordinates', () => {
+	it('converts WGS84 to LV95 (swisstopo reference point)', async () => {
+		const { wgs84ToLv95 } = await import('#lib/geo.ts');
+		// 46°02'38.87" N, 8°43'49.79" E → 2'700'000 / 1'100'000 (swisstopo documentation).
+		const { e, n } = wgs84ToLv95(46 + 2 / 60 + 38.87 / 3600, 8 + 43 / 60 + 49.79 / 3600);
+		expect(e).toBeCloseTo(2_700_000, -1);
+		expect(n).toBeCloseTo(1_100_000, -1);
+	});
+});
+
+describe('toWaypointsGpx', () => {
+	it('exports places as waypoints that standard GPX readers accept', async () => {
+		const { toWaypointsGpx } = await import('./gpx.ts');
+		const xml = toWaypointsGpx('Orte', [
+			{
+				name: 'Stall <Alp> & Co',
+				lat: 46.6,
+				lng: 8.6,
+				ele: 1980.4,
+				description: 'Wasser beim Brunnen',
+				type: 'Stall'
+			},
+			{ name: 'Quelle', lat: 46.61, lng: 8.61 }
+		]);
+		expect(xml).toContain(
+			'<wpt lat="46.6" lon="8.6"><ele>1980</ele><name>Stall &lt;Alp&gt; &amp; Co</name>'
+		);
+		expect(xml).toContain('<type>Stall</type>');
+		expect(xml.match(/<wpt /g)).toHaveLength(2);
+	});
+});
