@@ -237,3 +237,97 @@ export function setParticipants(tourId: string, userIds: string[], tx: Tx | type
 
 export const stagesOf = (tourId: string) =>
 	db.select().from(stage).where(eq(stage.tourId, tourId)).orderBy(asc(stage.dayIndex)).all();
+
+// Overviews -------------------------------------------------------------------
+
+/** All tours with summed stage stats and bounding box, newest first. */
+export function listTourSummaries() {
+	return db
+		.select({
+			slug: tour.slug,
+			title: tour.title,
+			year: tour.year,
+			season: tour.season,
+			startDate: tour.startDate,
+			endDate: tour.endDate,
+			summaryMd: sql<number>`${tour.summaryMd} is not null and ${tour.summaryMd} != ''`,
+			days: sql<number>`count(${stage.id})`,
+			distanceM: sql<number | null>`sum(${stage.distanceM})`,
+			ascentM: sql<number | null>`sum(${stage.ascentM})`,
+			descentM: sql<number | null>`sum(${stage.descentM})`,
+			maxEle: sql<number | null>`max(${stage.maxEle})`,
+			minLng: sql<number | null>`min(${stage.minLng})`,
+			minLat: sql<number | null>`min(${stage.minLat})`,
+			maxLng: sql<number | null>`max(${stage.maxLng})`,
+			maxLat: sql<number | null>`max(${stage.maxLat})`
+		})
+		.from(tour)
+		.leftJoin(stage, eq(stage.tourId, tour.id))
+		.groupBy(tour.id)
+		.orderBy(sql`${tour.year} desc`, sql`${tour.startDate} desc`, tour.title)
+		.all()
+		.map(({ summaryMd, minLng, minLat, maxLng, maxLat, ...t }) => ({
+			...t,
+			hasReport: !!summaryMd,
+			bbox:
+				minLng === null || minLat === null || maxLng === null || maxLat === null
+					? null
+					: ([minLng, minLat, maxLng, maxLat] as [number, number, number, number])
+		}));
+}
+
+export type RouteThumbnail = { path: string; nights: [number, number][] };
+
+/**
+ * Small route sketches (SVG path in a `size`×`size` box, north up) for the archive list,
+ * with the end of every day but the last marked as a night.
+ */
+export function routeThumbnails(size = 120, pad = 12): Map<string, RouteThumbnail> {
+	const rows = db
+		.select({ slug: tour.slug, geojson: stage.geojson })
+		.from(stage)
+		.innerJoin(tour, eq(tour.id, stage.tourId))
+		.orderBy(tour.slug, asc(stage.dayIndex))
+		.all();
+
+	const bySlug = new Map<string, number[][][]>(); // slug → days → points
+	for (const r of rows) {
+		if (!r.geojson) continue;
+		const day = r.geojson.coordinates.flat();
+		if (day.length) bySlug.set(r.slug, [...(bySlug.get(r.slug) ?? []), day]);
+	}
+
+	const out = new Map<string, RouteThumbnail>();
+	for (const [slug, days] of bySlug) {
+		const all = days.flat();
+		const lat0 = all.reduce((s, p) => s + p[1], 0) / all.length;
+		const kx = Math.cos((lat0 * Math.PI) / 180);
+		const xs = all.map((p) => p[0] * kx);
+		const ys = all.map((p) => -p[1]);
+		const [minX, maxX, minY, maxY] = [
+			Math.min(...xs),
+			Math.max(...xs),
+			Math.min(...ys),
+			Math.max(...ys)
+		];
+		const scale = (size - 2 * pad) / Math.max(maxX - minX, maxY - minY, 1e-9);
+		const ox = size / 2 - (scale * (minX + maxX)) / 2;
+		const oy = size / 2 - (scale * (minY + maxY)) / 2;
+		const project = (p: number[]): [number, number] => [
+			Math.round((ox + scale * p[0] * kx) * 10) / 10,
+			Math.round((oy - scale * p[1]) * 10) / 10
+		];
+
+		// ~150 points per tour is plenty at thumbnail size.
+		const step = Math.max(1, Math.floor(all.length / 150));
+		const path = days
+			.map((day) => {
+				const pts = day.filter((_, i) => i % step === 0 || i === day.length - 1).map(project);
+				return 'M' + pts.map(([x, y]) => `${x} ${y}`).join(' L');
+			})
+			.join(' ');
+		const nights = days.slice(0, -1).map((day) => project(day[day.length - 1]));
+		out.set(slug, { path, nights });
+	}
+	return out;
+}

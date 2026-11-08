@@ -1,3 +1,296 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+/* Self-hosted fonts (no third-party requests): Archivo with its width axis, IBM Plex Mono for numbers. */
+@import '@fontsource-variable/archivo/wdth.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/*
+ * Feldbuch – the Tschalps design system.
+ * Map paper, a dark ink, and the red of the Swiss mountain-trail markers (weiss-rot-weiss).
+ * Tokens become Tailwind utilities: bg-paper, text-ink, border-line, bg-trail, font-mono …
+ */
+@theme {
+	--font-sans: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+	--color-paper: #f3f3ee; /* page ground */
+	--color-map: #ecede5; /* map and thumbnail ground */
+	--color-surface: #ffffff; /* cards, inputs */
+	--color-ink: #17201b; /* text, header, dark buttons */
+	--color-ink-soft: #3f4741; /* secondary text on paper */
+	--color-muted: #59615b; /* labels, meta (6:1 on paper) */
+	--color-line: #d9dad2; /* hairlines */
+	--color-line-strong: #c9ccc4; /* input borders */
+	--color-header-muted: #c9ccc4; /* inactive nav on ink */
+	--color-ink-raised: #3a443e; /* avatar on ink */
+
+	--color-trail: #be2a1f; /* routes, primary action */
+	--color-trail-dark: #9e2219; /* hover, red text on paper */
+	--color-trail-tint: #f4dcd9; /* profile fill, soft highlight */
+
+	--color-place: #1e4f7a; /* stalls, barns */
+	--color-water: #3d8fc6;
+	--color-danger: #a3241a;
+	--color-ok: #2d7a55;
+
+	--radius-ui: 6px; /* buttons, inputs */
+	--radius-card: 10px;
+
+	--shadow-float: 0 1px 3px rgb(23 32 27 / 0.18);
+	--shadow-pop: 0 6px 24px rgb(23 32 27 / 0.18);
+}
+
+@layer base {
+	html {
+		font-family: var(--font-sans);
+		color: var(--color-ink);
+		background: var(--color-paper);
+	}
+	h1,
+	h2,
+	h3 {
+		text-wrap: balance;
+	}
+	a {
+		text-underline-offset: 0.18em;
+	}
+	:focus-visible {
+		outline: 2px solid var(--color-ink);
+		outline-offset: 2px;
+	}
+}
+
+/* Narrow, heavy display type for titles; mono labels for small caps-style eyebrows. */
+@utility font-display {
+	font-weight: 800;
+	font-stretch: 72%;
+	line-height: 0.92;
+	letter-spacing: -0.005em;
+}
+@utility eyebrow {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--color-muted);
+}
+@utility nums {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		min-height: 2.75rem;
+		padding: 0 1rem;
+		border-radius: var(--radius-ui);
+		font-weight: 600;
+		line-height: 1.2;
+		white-space: nowrap;
+		cursor: pointer;
+		transition:
+			background-color 120ms,
+			border-color 120ms;
+	}
+	.btn:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+	.btn-primary {
+		background: var(--color-trail);
+		color: #fff;
+	}
+	.btn-primary:hover:not(:disabled) {
+		background: var(--color-trail-dark);
+	}
+	.btn-dark {
+		background: var(--color-ink);
+		color: #fff;
+	}
+	.btn-dark:hover:not(:disabled) {
+		background: #000;
+	}
+	.btn-outline {
+		border: 1px solid #8c928d;
+		background: transparent;
+		color: var(--color-ink);
+	}
+	.btn-outline:hover:not(:disabled) {
+		background: var(--color-surface);
+	}
+	.btn-danger {
+		background: var(--color-danger);
+		color: #fff;
+	}
+	.btn-danger:hover:not(:disabled) {
+		background: #7f1c14;
+	}
+	.btn-sm {
+		min-height: 2.25rem;
+		padding: 0 0.75rem;
+		font-size: 0.875rem;
+	}
+	.btn-icon {
+		width: 2.75rem;
+		padding: 0;
+	}
+
+	.field {
+		width: 100%;
+		min-height: 2.75rem;
+		border-radius: var(--radius-ui);
+		border-color: var(--color-line-strong);
+		background-color: var(--color-surface);
+		color: var(--color-ink);
+	}
+	.field::placeholder {
+		color: #6a716c;
+	}
+	.field:focus {
+		border-color: var(--color-ink);
+		--tw-ring-color: rgb(190 42 31 / 0.25);
+		--tw-ring-shadow: 0 0 0 3px var(--tw-ring-color);
+		box-shadow: var(--tw-ring-shadow);
+	}
+	.label {
+		display: block;
+		margin-bottom: 0.375rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+	}
+	.check {
+		width: 1.125rem;
+		height: 1.125rem;
+		border-radius: 3px;
+		border-color: #8c928d;
+		color: var(--color-ink);
+	}
+	.check:focus {
+		--tw-ring-color: rgb(190 42 31 / 0.35);
+	}
+
+	.card {
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-card);
+		background: var(--color-surface);
+	}
+
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		min-height: 2.25rem;
+		padding: 0 0.75rem;
+		border: 1px solid var(--color-line-strong);
+		border-radius: 999px;
+		background: var(--color-surface);
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+	.chip[aria-pressed='true'] {
+		border-color: var(--color-ink);
+		background: var(--color-ink);
+		color: #fff;
+	}
+
+	/* Segmented control: a row of buttons, one pressed. */
+	.segmented {
+		display: inline-flex;
+		gap: 2px;
+		padding: 4px;
+		border-radius: 8px;
+		background: var(--color-surface);
+		font-size: 0.875rem;
+	}
+	.segmented > button {
+		min-height: 2.25rem;
+		padding: 0 0.75rem;
+		border-radius: 5px;
+		cursor: pointer;
+	}
+	.segmented > button:hover {
+		background: var(--color-paper);
+	}
+	.segmented > button[aria-pressed='true'] {
+		background: var(--color-ink);
+		color: #fff;
+		font-weight: 600;
+	}
+
+	.notice {
+		border-radius: var(--radius-ui);
+		padding: 0.75rem 1rem;
+		font-size: 0.875rem;
+	}
+	.notice-error {
+		background: #fbe9e7;
+		color: #7f1c14;
+	}
+	.notice-ok {
+		background: #e3f0e8;
+		color: #1f5a3e;
+	}
+}
+
+/* MapLibre controls in the Feldbuch style. */
+.maplibregl-ctrl-group:not(:empty) {
+	border-radius: 8px;
+	box-shadow: var(--shadow-float);
+	overflow: hidden;
+}
+.maplibregl-ctrl-group button {
+	width: 40px;
+	height: 40px;
+}
+.maplibregl-ctrl-scale {
+	border-color: var(--color-ink);
+	color: var(--color-ink);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	background: rgb(255 255 255 / 0.8);
+}
+.maplibregl-ctrl-attrib {
+	font-family: var(--font-mono);
+	font-size: 11px;
+}
+
+/* Tour markers (see StageMarkers.svelte). */
+.stage-marker {
+	display: grid;
+	place-items: center;
+	box-sizing: border-box;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1;
+	pointer-events: none;
+}
+.stage-marker-night {
+	width: 22px;
+	height: 22px;
+	border: 2.5px solid var(--color-trail);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--color-ink);
+}
+.stage-marker-start {
+	width: 14px;
+	height: 14px;
+	border: 2px solid #fff;
+	border-radius: 50%;
+	background: var(--color-ink);
+}
+.stage-marker-end {
+	width: 14px;
+	height: 14px;
+	border: 2px solid #fff;
+	background: var(--color-ink);
+}

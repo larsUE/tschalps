@@ -30,7 +30,7 @@
 			source: id,
 			paint: {
 				'circle-radius': 7,
-				'circle-color': '#1c1917',
+				'circle-color': '#17201b',
 				'circle-stroke-color': '#ffffff',
 				'circle-stroke-width': 3
 			}

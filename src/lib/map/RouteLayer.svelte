@@ -4,7 +4,12 @@
 </script>
 
 <script lang="ts">
-	import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
+	import type {
+		ExpressionSpecification,
+		FilterSpecification,
+		GeoJSONSource,
+		MapLayerMouseEvent
+	} from 'maplibre-gl';
 	import type { FeatureCollection, Geometry } from 'geojson';
 	import { onMount } from 'svelte';
 	import { getMapContext } from './context.ts';
@@ -16,11 +21,24 @@
 		color?: string;
 		/** `key` of the feature(s) drawn emphasised. */
 		highlight?: string | null;
+		/** Fade the other routes while one is highlighted. */
+		dimOthers?: boolean;
+		/** Only draw features matching this MapLibre filter (null: all). */
+		filter?: FilterSpecification | null;
 		onhover?: (props: RouteProps | null) => void;
 		onclick?: (props: RouteProps) => void;
 	};
 
-	let { id, data, color = '#c026d3', highlight = null, onhover, onclick }: Props = $props();
+	let {
+		id,
+		data,
+		color = '#be2a1f',
+		highlight = null,
+		dimOthers = false,
+		filter = null,
+		onhover,
+		onclick
+	}: Props = $props();
 
 	const map = getMapContext()()!;
 	const layer = (suffix: string) => `${id}-${suffix}`;
@@ -34,14 +52,14 @@
 			type: 'line',
 			source: id,
 			layout,
-			paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.85 }
+			paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.9 }
 		});
 		map.addLayer({
 			id: layer('line'),
 			type: 'line',
 			source: id,
 			layout,
-			paint: { 'line-color': lineColor, 'line-width': 3.5 }
+			paint: { 'line-color': lineColor, 'line-width': 4 }
 		});
 		map.addLayer({
 			id: layer('highlight'),
@@ -51,6 +69,18 @@
 			filter: ['==', ['get', 'key'], ''],
 			paint: { 'line-color': lineColor, 'line-width': 7 }
 		});
+		// Casing for the highlighted route, so it sits above faded neighbours.
+		map.addLayer(
+			{
+				id: layer('highlight-casing'),
+				type: 'line',
+				source: id,
+				layout,
+				filter: ['==', ['get', 'key'], ''],
+				paint: { 'line-color': '#ffffff', 'line-width': 11 }
+			},
+			layer('highlight')
+		);
 		// Wide invisible line: easier to hit with a finger or mouse.
 		map.addLayer({
 			id: layer('hit'),
@@ -81,7 +111,7 @@
 			map.off('click', layer('hit'), click);
 			// The map may already be gone when the whole page unmounts.
 			if (!map.getStyle()) return;
-			for (const suffix of ['hit', 'highlight', 'line', 'casing']) {
+			for (const suffix of ['hit', 'highlight', 'highlight-casing', 'line', 'casing']) {
 				if (map.getLayer(layer(suffix))) map.removeLayer(layer(suffix));
 			}
 			if (map.getSource(id)) map.removeSource(id);
@@ -93,8 +123,16 @@
 	});
 
 	$effect(() => {
-		if (map.getLayer(layer('highlight'))) {
-			map.setFilter(layer('highlight'), ['==', ['get', 'key'], highlight ?? '']);
-		}
+		if (!map.getLayer(layer('highlight'))) return;
+		const match: ExpressionSpecification = ['==', ['get', 'key'], highlight ?? ''];
+		const combined: FilterSpecification = filter
+			? (['all', filter, match] as FilterSpecification)
+			: match;
+		map.setFilter(layer('highlight'), combined);
+		map.setFilter(layer('highlight-casing'), combined);
+		for (const suffix of ['casing', 'line', 'hit']) map.setFilter(layer(suffix), filter);
+		const faded = dimOthers && highlight ? 0.4 : 1;
+		map.setPaintProperty(layer('line'), 'line-opacity', faded);
+		map.setPaintProperty(layer('casing'), 'line-opacity', faded * 0.9);
 	});
 </script>

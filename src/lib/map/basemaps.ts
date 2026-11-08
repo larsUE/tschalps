@@ -71,7 +71,7 @@ export function buildStyle(basemap: BasemapId, overlays: OverlayId[]): StyleSpec
 	const style: StyleSpecification = {
 		version: 8,
 		sources: {},
-		layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#f5f5f4' } }]
+		layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#ecede5' } }]
 	};
 
 	for (const b of BASEMAPS) {

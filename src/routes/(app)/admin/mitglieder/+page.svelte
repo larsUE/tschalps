@@ -12,17 +12,18 @@
 	<title>Mitglieder · Tschalps</title>
 </svelte:head>
 
-<section class="mx-auto w-full max-w-6xl space-y-8 px-4 py-10">
-	<div>
-		<h1 class="text-2xl font-bold">Mitglieder</h1>
-		<p class="mt-1 text-stone-600">
+<section class="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pt-10 pb-20 sm:px-6 sm:pt-12">
+	<div class="flex flex-col gap-3">
+		<span class="eyebrow text-trail-dark">Admin</span>
+		<h1 class="text-[64px] font-display sm:text-[96px]">Mitglieder</h1>
+		<p class="text-lg text-ink-soft">
 			{data.members.length}
 			{data.members.length === 1 ? 'Person hat' : 'Personen haben'} Zugang zur Plattform.
 		</p>
 	</div>
 
-	<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
-		<h2 class="mb-4 font-semibold">Mitglied einladen</h2>
+	<div class="card p-5 sm:p-6">
+		<h2 class="mb-4 text-[28px] font-display leading-none">Mitglied einladen</h2>
 		<form
 			method="POST"
 			action="?/invite"
@@ -34,7 +35,7 @@
 				placeholder="Vor- und Nachname"
 				required
 				value={form?.invite?.name ?? ''}
-				class="rounded-lg border-stone-300 focus:border-emerald-600 focus:ring-emerald-600"
+				class="field"
 			/>
 			<input
 				name="email"
@@ -42,35 +43,28 @@
 				placeholder="E-Mail-Adresse"
 				required
 				value={form?.invite?.email ?? ''}
-				class="rounded-lg border-stone-300 focus:border-emerald-600 focus:ring-emerald-600"
+				class="field"
 			/>
-			<select
-				name="role"
-				class="rounded-lg border-stone-300 focus:border-emerald-600 focus:ring-emerald-600"
-			>
+			<select name="role" class="field">
 				<option value="user">Mitglied</option>
 				<option value="admin">Admin</option>
 			</select>
-			<button
-				class="rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
-			>
-				Einladen
-			</button>
+			<button class="btn btn-primary">Einladen</button>
 		</form>
 		{#if form?.invite?.error}
-			<p class="mt-3 text-sm text-red-700">{form.invite.error}</p>
+			<p class="notice notice-error mt-4" role="alert">{form.invite.error}</p>
 		{:else if form?.invited}
-			<p class="mt-3 text-sm text-emerald-800">Einladung an {form.invited} verschickt.</p>
+			<p class="notice notice-ok mt-4">Einladung an {form.invited} verschickt.</p>
 		{/if}
 	</div>
 
 	{#if form?.error}
-		<p class="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-800">{form.error}</p>
+		<p class="notice notice-error" role="alert">{form.error}</p>
 	{/if}
 
-	<div class="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-stone-200">
-		<table class="w-full text-left text-sm">
-			<thead class="border-b border-stone-200 text-stone-500">
+	<div class="card overflow-x-auto">
+		<table class="w-full text-left text-[15px]">
+			<thead class="border-b-2 border-ink eyebrow">
 				<tr>
 					<th class="px-4 py-3 font-medium">Name</th>
 					<th class="px-4 py-3 font-medium">E-Mail</th>
@@ -79,10 +73,10 @@
 					<th class="px-4 py-3"></th>
 				</tr>
 			</thead>
-			<tbody class="divide-y divide-stone-100">
+			<tbody class="divide-y divide-line">
 				{#each data.members as member (member.id)}
 					{@const isSelf = member.id === data.user.id}
-					<tr class={member.banned ? 'text-stone-400' : ''}>
+					<tr class={member.banned ? 'text-muted' : ''}>
 						<td class="px-4 py-3 font-medium">
 							{member.name}
 							{#if member.banned}<span class="ml-2 text-xs font-normal">(deaktiviert)</span>{/if}
@@ -98,7 +92,7 @@
 										name="role"
 										value={member.role ?? 'user'}
 										onchange={(e) => e.currentTarget.form?.requestSubmit()}
-										class="rounded-md border-stone-300 py-1 text-sm"
+										class="field min-h-9 w-auto py-1 text-sm"
 										aria-label="Rolle von {member.name}"
 									>
 										<option value="user">Mitglied</option>
@@ -107,7 +101,9 @@
 								</form>
 							{/if}
 						</td>
-						<td class="px-4 py-3 whitespace-nowrap">{dateFormat.format(member.createdAt)}</td>
+						<td class="px-4 py-3 nums text-sm whitespace-nowrap"
+							>{dateFormat.format(member.createdAt)}</td
+						>
 						<td class="px-4 py-3 text-right">
 							{#if !isSelf}
 								<form
@@ -116,7 +112,7 @@
 									use:enhance
 								>
 									<input type="hidden" name="userId" value={member.id} />
-									<button class="text-sm text-stone-600 underline hover:text-stone-900">
+									<button class="cursor-pointer text-sm underline hover:text-trail">
 										{member.banned ? 'Reaktivieren' : 'Deaktivieren'}
 									</button>
 								</form>

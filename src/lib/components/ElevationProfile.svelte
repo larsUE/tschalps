@@ -4,13 +4,16 @@
 	type Props = {
 		points: ProfilePoint[];
 		color?: string;
+		/** Day boundaries: distance (m) where each day after the first starts. */
+		dayStarts?: number[];
+		height?: number;
 		onhover?: (point: ProfilePoint | null) => void;
 	};
 
-	let { points, color = '#047857', onhover }: Props = $props();
+	let { points, color = '#be2a1f', dayStarts = [], height = 180, onhover }: Props = $props();
 
-	const HEIGHT = 140;
-	const PAD = { top: 10, right: 8, bottom: 22, left: 44 };
+	const HEIGHT = $derived(height);
+	const PAD = { top: 22, right: 8, bottom: 24, left: 52 };
 
 	let width = $state(0);
 	let hovered = $state<ProfilePoint | null>(null);
@@ -29,7 +32,7 @@
 	});
 
 	const innerW = $derived(Math.max(0, width - PAD.left - PAD.right));
-	const innerH = HEIGHT - PAD.top - PAD.bottom;
+	const innerH = $derived(HEIGHT - PAD.top - PAD.bottom);
 	const x = (d: number) => PAD.left + (extent.total ? (d / extent.total) * innerW : 0);
 	const y = (ele: number) =>
 		PAD.top + innerH - ((ele - extent.lo) / (extent.hi - extent.lo)) * innerH;
@@ -87,7 +90,7 @@
 
 <div bind:clientWidth={width} class="relative select-none">
 	{#if points.length < 2}
-		<p class="py-6 text-center text-sm text-stone-500">Keine Höhendaten vorhanden.</p>
+		<p class="py-6 text-center text-sm text-muted">Keine Höhendaten vorhanden.</p>
 	{:else if width}
 		<svg
 			{width}
@@ -105,16 +108,17 @@
 					x2={width - PAD.right}
 					y1={y(tick)}
 					y2={y(tick)}
-					class="stroke-stone-200"
+					class="stroke-line-strong"
+					stroke-dasharray="2 3"
 				/>
 				<text
-					x={PAD.left - 6}
+					x={PAD.left - 8}
 					y={y(tick)}
 					dy="0.32em"
 					text-anchor="end"
-					class="fill-stone-500 text-[10px]"
+					class="fill-muted font-mono text-[11px]"
 				>
-					{tick}
+					{tick} m
 				</text>
 			{/each}
 			{#each xTicks as tick (tick)}
@@ -122,27 +126,58 @@
 					x={x(tick * 1000)}
 					y={HEIGHT - 6}
 					text-anchor="middle"
-					class="fill-stone-500 text-[10px]"
+					class="fill-muted font-mono text-[11px]"
 				>
 					{tick} km
 				</text>
 			{/each}
-			<path d={area} fill={color} fill-opacity="0.15" />
-			<path d={line} fill="none" stroke={color} stroke-width="2" stroke-linejoin="round" />
+			<path d={area} fill={color} fill-opacity="0.18" />
+			<path d={line} fill="none" stroke={color} stroke-width="2.5" stroke-linejoin="round" />
+			<line
+				x1={PAD.left}
+				x2={width - PAD.right}
+				y1={PAD.top + innerH}
+				y2={PAD.top + innerH}
+				class="stroke-ink"
+				stroke-width="1.5"
+			/>
+			{#each dayStarts as d, i (i)}
+				<line
+					x1={x(d)}
+					x2={x(d)}
+					y1={PAD.top}
+					y2={PAD.top + innerH}
+					class="stroke-ink"
+					stroke-dasharray="3 3"
+				/>
+			{/each}
+			{#each dayStarts.length ? [0, ...dayStarts] : [] as d, i (i)}
+				{@const end = dayStarts[i] ?? extent.total}
+				{#if x(end) - x(d) > 34}
+					<text
+						x={(x(d) + x(end)) / 2}
+						y={PAD.top - 8}
+						text-anchor="middle"
+						class="fill-muted font-mono text-[11px]"
+					>
+						Tag {i + 1}
+					</text>
+				{/if}
+			{/each}
 			{#if hovered}
 				<line
 					x1={x(hovered.d)}
 					x2={x(hovered.d)}
 					y1={PAD.top}
 					y2={PAD.top + innerH}
-					class="stroke-stone-800"
-					stroke-dasharray="3 3"
+					class="stroke-ink"
+					stroke-width="1.5"
 				/>
 				<circle
 					cx={x(hovered.d)}
 					cy={y(hovered.ele)}
-					r="4"
-					fill={color}
+					r="5"
+					fill="#17201b"
 					stroke="white"
 					stroke-width="2"
 				/>
@@ -150,7 +185,7 @@
 		</svg>
 		{#if hovered}
 			<div
-				class="pointer-events-none absolute top-0 rounded bg-stone-900 px-2 py-0.5 text-xs whitespace-nowrap text-white"
+				class="pointer-events-none absolute top-0 rounded-ui bg-ink px-2.5 py-1 font-mono text-xs whitespace-nowrap text-white"
 				style:left="{Math.min(Math.max(x(hovered.d), 60), width - 60)}px"
 				style:transform="translateX(-50%)"
 			>

@@ -28,18 +28,26 @@ const parseDate = (iso: string) => {
 
 export const formatDate = (iso: string | null | undefined) =>
 	iso ? dateFormat.format(parseDate(iso)) : '';
+/** "20.–27. Juli 2026"; a single date when start and end match or one is missing. */
+export function formatDateRange(start: string | null | undefined, end: string | null | undefined) {
+	if (!start) return formatDate(end);
+	if (!end || end === start) return formatDate(start);
+	return dateFormat.formatRange(parseDate(start), parseDate(end));
+}
 export const formatShortDate = (iso: string | null | undefined) =>
 	iso ? shortDateFormat.format(parseDate(iso)) : '';
 
-/** Distinct colours for the days of a tour, readable on both the map and aerial imagery. */
-export const DAY_COLORS = [
-	'#c026d3',
-	'#2563eb',
-	'#ea580c',
-	'#0d9488',
-	'#7c3aed',
-	'#dc2626',
-	'#0891b2',
-	'#65a30d'
-];
-export const dayColor = (dayIndex: number) => DAY_COLORS[(dayIndex - 1) % DAY_COLORS.length];
+/** Route red (mountain-trail marker). Used for a single tour's stages. */
+export const TRAIL_COLOR = '#be2a1f';
+
+/**
+ * Route colours by year on the overview map: the newest year is trail red, older years
+ * cycle through colours that stay distinct on the national map and aerial imagery.
+ */
+export const YEAR_COLORS = ['#be2a1f', '#c76a12', '#2d7a55', '#2a63a8', '#6e4c9e', '#8a5a2b'];
+
+/** Maps each year to its colour, given all years present (any order, duplicates allowed). */
+export function yearColors(years: Iterable<number>): Map<number, string> {
+	const sorted = [...new Set(years)].sort((a, b) => b - a);
+	return new Map(sorted.map((y, i) => [y, YEAR_COLORS[i % YEAR_COLORS.length]]));
+}

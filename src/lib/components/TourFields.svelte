@@ -12,9 +12,8 @@
 
 	let { values }: { values: Values } = $props();
 
-	const input =
-		'w-full rounded-lg border-stone-300 focus:border-emerald-600 focus:ring-emerald-600';
-	const label = 'mb-1 block text-sm font-medium text-stone-700';
+	const input = 'field';
+	const label = 'label';
 </script>
 
 <div class="grid gap-4 sm:grid-cols-6">
@@ -50,7 +49,7 @@
 		<span class={label}>Bis</span>
 		<input name="endDate" type="date" value={values.endDate ?? ''} class={input} />
 	</label>
-	<p class="-mt-2 text-xs text-stone-500 sm:col-span-6">
+	<p class="-mt-2 text-sm text-muted sm:col-span-6">
 		Leer lassen, wenn die GPX-Dateien Zeitstempel haben: Die Daten werden dann übernommen.
 	</p>
 	<label class="sm:col-span-6">

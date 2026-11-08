@@ -5,16 +5,14 @@
 	import GpxInput from '#lib/components/GpxInput.svelte';
 	import TourFields from '#lib/components/TourFields.svelte';
 	import { formatKm, formatM } from '#lib/geo.ts';
-	import { dayColor } from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	let uploading = $state(false);
 
-	const card = 'space-y-5 rounded-xl bg-white p-5 shadow-sm ring-1 ring-stone-200';
-	const primary =
-		'rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60';
+	const card = 'card flex flex-col gap-5 p-5 sm:p-6';
+	const primary = 'btn btn-primary';
 	const feedback = (action: string) => (form?.action === action ? form : null);
 </script>
 
@@ -22,15 +20,16 @@
 	<title>{data.tour.title} bearbeiten · Tschalps</title>
 </svelte:head>
 
-<section class="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
-	<div>
+<section class="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 pt-8 pb-20 sm:px-6">
+	<div class="flex flex-col gap-3">
 		<a
 			href={resolve('/(app)/tschalps/[slug]', { slug: data.tour.slug })}
-			class="text-sm text-stone-500 hover:text-stone-800"
+			class="nums text-[13px] text-muted hover:text-ink"
 		>
 			← Zurück zur Tschalps
 		</a>
-		<h1 class="mt-2 text-2xl font-bold">{data.tour.title} bearbeiten</h1>
+		<span class="eyebrow text-trail-dark">Bearbeiten</span>
+		<h1 class="text-[48px] font-display sm:text-[64px]">{data.tour.title}</h1>
 	</div>
 
 	<form
@@ -41,21 +40,23 @@
 				update({ reset: false })}
 		class={card}
 	>
-		<h2 class="font-semibold">Angaben</h2>
+		<h2 class="text-[28px] font-display leading-none">Angaben</h2>
 		<FormErrors errors={feedback('save')?.errors} />
 		<TourFields values={feedback('save')?.values ?? data.tour} />
 
 		<fieldset>
-			<legend class="mb-2 text-sm font-medium text-stone-700">Dabei waren</legend>
-			<div class="grid max-h-60 gap-1.5 overflow-y-auto rounded-lg p-1 sm:grid-cols-2">
+			<legend class="label">Dabei waren</legend>
+			<div
+				class="grid max-h-60 gap-1 overflow-y-auto rounded-ui border border-line bg-paper p-2 sm:grid-cols-2"
+			>
 				{#each data.members as m (m.id)}
-					<label class="flex items-center gap-2 text-sm">
+					<label class="flex min-h-9 items-center gap-2.5 text-[15px]">
 						<input
 							type="checkbox"
 							name="participants"
 							value={m.id}
 							checked={m.participant}
-							class="rounded text-emerald-700 focus:ring-emerald-600"
+							class="check"
 						/>
 						{m.name}
 					</label>
@@ -67,15 +68,15 @@
 	</form>
 
 	<div class={card}>
-		<h2 class="font-semibold">Etappen</h2>
+		<h2 class="text-[28px] font-display leading-none">Etappen</h2>
 		<FormErrors errors={feedback('stages')?.errors} />
 		{#if feedback('stages')?.message}
-			<p class="text-sm text-emerald-800">{feedback('stages')?.message}</p>
+			<p class="notice notice-ok">{feedback('stages')?.message}</p>
 		{/if}
 
 		<ol class="space-y-3">
 			{#each data.stages as s (s.id)}
-				<li class="rounded-lg p-3 ring-1 ring-stone-200">
+				<li class="rounded-ui border border-line p-3">
 					<form
 						method="POST"
 						action="?/updateStage"
@@ -83,11 +84,10 @@
 						class="flex flex-wrap items-end gap-2"
 					>
 						<input type="hidden" name="id" value={s.id} />
-						<span class="flex w-full items-center gap-2 text-sm font-medium">
-							<span class="size-3 rounded-full" style:background-color={dayColor(s.dayIndex)}
-							></span>
+						<span class="flex w-full items-baseline gap-2.5 font-semibold">
+							<span class="nums font-medium text-muted">{String(s.dayIndex).padStart(2, '0')}</span>
 							Tag {s.dayIndex}
-							<span class="font-normal text-stone-500">
+							<span class="nums text-[13px] font-normal text-muted">
 								{formatKm(s.distanceM)} · ↑ {formatM(s.ascentM)}
 							</span>
 						</span>
@@ -96,21 +96,19 @@
 							value={s.title ?? ''}
 							placeholder="Titel, z. B. Furkapass – Realp"
 							aria-label="Titel von Tag {s.dayIndex}"
-							class="min-w-0 flex-1 rounded-md border-stone-300 text-sm"
+							class="field min-w-0 flex-1 text-[15px]"
 						/>
 						<input
 							name="date"
 							type="date"
 							value={s.date ?? ''}
 							aria-label="Datum von Tag {s.dayIndex}"
-							class="rounded-md border-stone-300 text-sm"
+							class="field w-auto text-[15px]"
 						/>
-						<button class="rounded-md px-3 py-2 text-sm ring-1 ring-stone-300 hover:bg-stone-50">
-							Speichern
-						</button>
+						<button class="btn btn-outline btn-sm min-h-11"> Speichern </button>
 						<button
 							formaction="?/deleteStage"
-							class="rounded-md px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 hover:bg-red-50"
+							class="btn btn-sm min-h-11 border border-[#e3b4ae] text-danger hover:bg-[#fbe9e7]"
 							onclick={(e) => {
 								if (!confirm(`Tag ${s.dayIndex} wirklich löschen?`)) e.preventDefault();
 							}}
@@ -120,16 +118,16 @@
 					</form>
 				</li>
 			{:else}
-				<li class="text-sm text-stone-500">Noch keine Etappen.</li>
+				<li class="text-sm text-muted">Noch keine Etappen.</li>
 			{/each}
 		</ol>
-		<p class="text-xs text-stone-500">Die Tage werden nach Datum nummeriert.</p>
+		<p class="text-sm text-muted">Die Tage werden nach Datum nummeriert.</p>
 
 		<form
 			method="POST"
 			action="?/addStages"
 			enctype="multipart/form-data"
-			class="space-y-3 border-t border-stone-200 pt-5"
+			class="flex flex-col gap-3 border-t border-line pt-5"
 			use:enhance={() => {
 				uploading = true;
 				return async ({ update }) => {
@@ -138,10 +136,10 @@
 				};
 			}}
 		>
-			<h3 class="text-sm font-semibold">Weitere GPX-Dateien hinzufügen</h3>
+			<h3 class="font-semibold">Weitere GPX-Dateien hinzufügen</h3>
 			<FormErrors errors={feedback('addStages')?.errors} />
 			{#if feedback('addStages')?.message}
-				<p class="text-sm text-emerald-800">{feedback('addStages')?.message}</p>
+				<p class="notice notice-ok">{feedback('addStages')?.message}</p>
 			{/if}
 			<GpxInput />
 			<div class="flex justify-end">
@@ -152,28 +150,19 @@
 		</form>
 	</div>
 
-	<form method="POST" action="?/deleteTour" use:enhance class="{card} ring-red-200">
-		<h2 class="font-semibold text-red-800">Tschalps löschen</h2>
+	<form method="POST" action="?/deleteTour" use:enhance class="{card} border-[#e3b4ae]">
+		<h2 class="text-[28px] font-display leading-none text-danger">Tschalps löschen</h2>
 		<FormErrors errors={feedback('deleteTour')?.errors} />
-		<p class="text-sm text-stone-600">
+		<p class="text-ink-soft">
 			Löscht die Tschalps mit allen Etappen, GPX-Dateien und Fotos. Das kann nicht rückgängig
 			gemacht werden.
 		</p>
-		<label class="flex items-center gap-2 text-sm">
-			<input
-				type="checkbox"
-				name="confirm"
-				value="yes"
-				class="rounded text-red-700 focus:ring-red-600"
-			/>
+		<label class="flex min-h-11 items-center gap-2.5">
+			<input type="checkbox" name="confirm" value="yes" class="check" />
 			Ja, endgültig löschen
 		</label>
 		<div class="flex justify-end">
-			<button
-				class="rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
-			>
-				Löschen
-			</button>
+			<button class="btn btn-danger">Löschen</button>
 		</div>
 	</form>
 </section>
