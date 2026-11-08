@@ -99,6 +99,55 @@ describe('splitIntoStages', () => {
 	});
 });
 
+describe('splitAtNights (week planned in one undated track)', () => {
+	// A straight line north, ~1.1 km between points.
+	const line = Array.from({ length: 31 }, (_, i) => pt(46 + i * 0.01, 8, 1000));
+	const wpt = (name: string, lat: number) =>
+		`<wpt lat="${lat}" lon="8.001"><name>${name}</name></wpt>`;
+
+	it('splits at numbered night waypoints, in number order', () => {
+		// File order is not route order (as in SchweizMobil exports).
+		const file = parseGpx(gpx(wpt('2', 46.2) + wpt('1', 46.1) + trk('Woche', line)));
+		const stages = splitIntoStages([{ fileName: 'woche.gpx', gpx: file }]);
+		expect(stages).toHaveLength(3);
+		expect(stages.map((s) => s.night?.name)).toEqual(['1', '2', undefined]);
+		expect(stages.every((s) => s.title === undefined && s.wholeFileIndex === undefined)).toBe(true);
+		// Days share the night's point, so the route stays connected.
+		expect(stages[0].segments[0].at(-1)).toEqual(stages[1].segments[0][0]);
+	});
+
+	it('accepts "1.Nacht" and "Nacht 2: …", ignores other waypoints and ones far away', () => {
+		const file = parseGpx(
+			gpx(
+				wpt('1.Nacht', 46.1) +
+					wpt('Nacht 2: Alpe Moesola', 46.2) +
+					wpt('Pass 2503', 46.15) +
+					`<wpt lat="46.25" lon="8.5"><name>3</name></wpt>` +
+					trk('Woche', line)
+			)
+		);
+		const stages = splitIntoStages([{ fileName: 'woche.gpx', gpx: file }]);
+		expect(stages.map((s) => s.night?.name)).toEqual([
+			'1.Nacht',
+			'Nacht 2: Alpe Moesola',
+			undefined
+		]);
+	});
+
+	it('ignores night markers at the very start or end', () => {
+		const file = parseGpx(gpx(wpt('1', 46) + wpt('2', 46.15) + wpt('3', 46.3) + trk('W', line)));
+		const stages = splitIntoStages([{ fileName: 'w.gpx', gpx: file }]);
+		expect(stages.map((s) => s.night?.name)).toEqual(['2', undefined]);
+	});
+
+	it('keeps a track without night waypoints whole', () => {
+		const file = parseGpx(gpx(trk('Tag', line)));
+		const stages = splitIntoStages([{ fileName: 't.gpx', gpx: file }]);
+		expect(stages).toHaveLength(1);
+		expect(stages[0]).toMatchObject({ title: 'Tag', wholeFileIndex: 0 });
+	});
+});
+
 describe('stats', () => {
 	it('measures distance', () => {
 		// One degree of latitude is ~111.2 km.

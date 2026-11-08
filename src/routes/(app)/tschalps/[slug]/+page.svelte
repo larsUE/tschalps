@@ -13,7 +13,16 @@
 	import StageMarkers, { type StagePoint } from '#lib/map/StageMarkers.svelte';
 	import { mapPreferences } from '#lib/map/preferences.svelte.ts';
 	import { formatKm, formatM, profile, type ProfilePoint } from '#lib/geo.ts';
-	import { SEASON_LABELS, TRAIL_COLOR, formatDateRange, formatShortDate } from '#lib/labels.ts';
+	import {
+		SEASON_LABELS,
+		TOUR_KIND_LABELS,
+		TRAIL_COLOR,
+		formatDateRange,
+		formatShortDate,
+		maxDifficulty,
+		sumTrailMix
+	} from '#lib/labels.ts';
+	import TrailMixBar from '#lib/components/TrailMixBar.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -130,10 +139,18 @@
 			[data.tour.season && SEASON_LABELS[data.tour.season], data.tour.year]
 				.filter(Boolean)
 				.join(' '),
-			formatDateRange(data.tour.startDate, data.tour.endDate)
+			formatDateRange(data.tour.startDate, data.tour.endDate),
+			data.tour.kind && TOUR_KIND_LABELS[data.tour.kind],
+			data.tour.huts && 'Hüttentschalps'
 		]
 			.filter(Boolean)
 			.join(' · ')
+	);
+
+	const difficulty = $derived(maxDifficulty(data.stages.map((s) => s.difficulty)));
+	/** Trail mix of the selected day, or of the whole tour. */
+	const trailMix = $derived(
+		selectedStage ? selectedStage.trailMix : sumTrailMix(data.stages.map((s) => s.trailMix))
 	);
 
 	const pad = (n: number) => String(n).padStart(2, '0');
@@ -211,15 +228,24 @@
 	</section>
 
 	<dl
-		class="grid grid-cols-2 border-t-2 border-b border-t-ink border-b-line sm:grid-cols-3 lg:grid-cols-5"
+		class="grid grid-cols-2 border-t-2 border-b border-t-ink border-b-line sm:grid-cols-3 lg:grid-cols-6"
 	>
-		{#each [['Distanz', formatKm(totals.distanceM)], ['Aufstieg', formatM(totals.ascentM)], ['Abstieg', formatM(totals.descentM)], ['Höchster Punkt (ü. M.)', Number.isFinite(totals.maxEle) ? formatM(totals.maxEle) : '–'], ['Etappen', String(data.stages.length)]] as [label, value] (label)}
+		{#each [['Distanz', formatKm(totals.distanceM)], ['Aufstieg', formatM(totals.ascentM)], ['Abstieg', formatM(totals.descentM)], ['Höchster Punkt (ü. M.)', Number.isFinite(totals.maxEle) ? formatM(totals.maxEle) : '–'], ['Etappen', String(data.stages.length)], ['Schwierigkeit (max.)', difficulty ?? '–']] as [label, value] (label)}
 			<div class="py-4 pr-4">
 				<dt class="text-[13px] text-muted">{label}</dt>
 				<dd class="nums text-2xl leading-tight font-medium sm:text-[30px]">{value}</dd>
 			</div>
 		{/each}
 	</dl>
+
+	{#if trailMix}
+		<section aria-labelledby="wegtypen" class="-mt-6 flex flex-col gap-2">
+			<h2 id="wegtypen" class="text-[13px] text-muted">
+				Wegtypen{selectedStage ? ` · Tag ${selectedStage.dayIndex}` : ''}
+			</h2>
+			<TrailMixBar mix={trailMix} legend />
+		</section>
+	{/if}
 
 	<section aria-label="Karte und Etappen" class="flex flex-col gap-6 lg:flex-row">
 		<div
@@ -284,8 +310,11 @@
 							</span>
 							{#if s.title}<span class="block truncate text-sm text-ink-soft">{s.title}</span>{/if}
 							<span class="block nums text-[13px] text-muted">
-								{formatKm(s.distanceM)} · ↑{formatM(s.ascentM)} · ↓{formatM(s.descentM)}
+								{formatKm(s.distanceM)} · ↑{formatM(s.ascentM)} · ↓{formatM(
+									s.descentM
+								)}{s.difficulty ? ` · ${s.difficulty}` : ''}
 							</span>
+							{#if s.trailMix}<TrailMixBar mix={s.trailMix} class="mt-1.5 max-w-60" />{/if}
 						</button>
 						{#if s.nightPlaceId}
 							<a

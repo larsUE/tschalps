@@ -1,7 +1,8 @@
-import { and, asc, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm';
+import { sumTrailMix, type Difficulty, type TrailMix } from '#lib/labels.ts';
 import { formText } from './forms.ts';
 import { db } from '#lib/server/db/index.ts';
-import { stage, tour, tourParticipant, SEASONS } from '#lib/server/db/schema.ts';
+import { stage, tour, tourParticipant, SEASONS, TOUR_KINDS } from '#lib/server/db/schema.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
 import {
 	GpxError,
@@ -11,7 +12,9 @@ import {
 	toGpx,
 	type StageDraft
 } from './gpx.ts';
-import { writeUpload } from './storage.ts';
+import { placesNear } from './places.ts';
+import { readUpload, writeUpload } from './storage.ts';
+import { analyseTrails } from './trails.ts';
 
 export const MAX_GPX_BYTES = 20 * 1024 * 1024;
 
@@ -37,6 +40,8 @@ export type TourFields = {
 	season: (typeof SEASONS)[number] | null;
 	startDate: string | null;
 	endDate: string | null;
+	kind: (typeof TOUR_KINDS)[number] | null;
+	huts: boolean;
 	summaryMd: string | null;
 };
 
@@ -49,6 +54,8 @@ export function readTourFields(form: FormData) {
 		season: str('season'),
 		startDate: str('startDate'),
 		endDate: str('endDate'),
+		kind: str('kind'),
+		huts: form.get('huts') === 'on',
 		summaryMd: str('summaryMd')
 	};
 	const errors: string[] = [];
@@ -61,6 +68,7 @@ export function readTourFields(form: FormData) {
 		errors.push(`Das Jahr muss zwischen 1970 und ${maxYear} liegen.`);
 	if (values.season && !SEASONS.includes(values.season as never))
 		errors.push('Ungültige Jahreszeit.');
+	if (values.kind && !TOUR_KINDS.includes(values.kind as never)) errors.push('Ungültige Art.');
 	for (const key of ['startDate', 'endDate'] as const) {
 		if (values[key] && !ISO_DATE.test(values[key])) errors.push('Ungültiges Datum.');
 	}
@@ -75,6 +83,8 @@ export function readTourFields(form: FormData) {
 		season: (values.season || null) as TourFields['season'],
 		startDate: values.startDate || null,
 		endDate: values.endDate || null,
+		kind: (values.kind || null) as TourFields['kind'],
+		huts: values.huts,
 		summaryMd: values.summaryMd || null
 	};
 	return { values, fields, errors };
@@ -147,9 +157,26 @@ export async function parseGpxUploads(form: FormData, field = 'gpx') {
 	return { result, errors, count: uploads.length };
 }
 
+/** A night waypoint this close to a known place links the stage to it. */
+const NIGHT_PLACE_RADIUS_M = 300;
+
+/** Trail mix of a route, or null when the swisstopo tiles cannot be loaded right now. */
+async function trailMixOf(
+	segments: StageDraft['segments'],
+	cache?: Parameters<typeof analyseTrails>[1]
+) {
+	try {
+		return await analyseTrails(segments, cache);
+	} catch (error) {
+		console.warn('Wegtypen konnten nicht berechnet werden:', error);
+		return null;
+	}
+}
+
 /** Stores stage files and rows for parsed uploads, then renumbers the tour's days. */
 export async function saveStages(tourId: string, upload: ParsedUpload) {
 	const rows: (typeof stage.$inferInsert)[] = [];
+	const tiles = new Map();
 	for (const draft of upload.stages) {
 		const id = crypto.randomUUID();
 		const gpxPath = `gpx/${tourId}/${id}.gpx`;
@@ -160,6 +187,10 @@ export async function saveStages(tourId: string, upload: ParsedUpload) {
 				: toGpx(draft.title ?? 'Etappe', [{ name: draft.title, segments: draft.segments }]);
 		await writeUpload(gpxPath, content);
 
+		const night = draft.night
+			? placesNear(draft.night.lat, draft.night.lng, NIGHT_PLACE_RADIUS_M, 1)[0]
+			: undefined;
+
 		rows.push({
 			id,
 			tourId,
@@ -167,6 +198,8 @@ export async function saveStages(tourId: string, upload: ParsedUpload) {
 			date: draft.date ?? null,
 			title: draft.title ?? null,
 			gpxPath,
+			nightPlaceId: night?.id ?? null,
+			trailMix: await trailMixOf(draft.segments, tiles),
 			...stageMetrics(draft.segments)
 		});
 	}
@@ -176,6 +209,30 @@ export async function saveStages(tourId: string, upload: ParsedUpload) {
 		renumberStages(tourId, tx);
 	});
 	return rows.length;
+}
+
+/**
+ * Recomputes the trail mix of a tour's stages from their stored GPX files
+ * (e.g. for stages imported before, or when swisstopo was unreachable).
+ */
+export async function recomputeTrailMix(tourId: string, onlyMissing = false) {
+	const tiles = new Map();
+	let done = 0;
+	let failed = 0;
+	for (const s of stagesOf(tourId)) {
+		if (!s.gpxPath || (onlyMissing && s.trailMix)) continue;
+		const segments = parseGpx(new TextDecoder().decode(await readUpload(s.gpxPath))).tracks.flatMap(
+			(t) => t.segments
+		);
+		const trailMix = await trailMixOf(segments, tiles);
+		if (!trailMix) {
+			failed++;
+			continue;
+		}
+		db.update(stage).set({ trailMix }).where(eq(stage.id, s.id)).run();
+		done++;
+	}
+	return { done, failed };
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -243,16 +300,30 @@ export const stagesOf = (tourId: string) =>
 
 /** All tours with summed stage stats and bounding box, newest first. */
 export function listTourSummaries() {
+	const mixes = new Map<string, TrailMix[]>();
+	for (const r of db
+		.select({ tourId: stage.tourId, trailMix: stage.trailMix })
+		.from(stage)
+		.where(isNotNull(stage.trailMix))
+		.all()) {
+		mixes.set(r.tourId, [...(mixes.get(r.tourId) ?? []), r.trailMix!]);
+	}
+
 	return db
 		.select({
+			id: tour.id,
 			slug: tour.slug,
 			title: tour.title,
 			year: tour.year,
 			season: tour.season,
 			startDate: tour.startDate,
 			endDate: tour.endDate,
+			kind: tour.kind,
+			huts: tour.huts,
 			summaryMd: sql<number>`${tour.summaryMd} is not null and ${tour.summaryMd} != ''`,
 			days: sql<number>`count(${stage.id})`,
+			// 'T1' < … < 'T6' sorts as text.
+			difficulty: sql<Difficulty | null>`max(${stage.difficulty})`,
 			distanceM: sql<number | null>`sum(${stage.distanceM})`,
 			ascentM: sql<number | null>`sum(${stage.ascentM})`,
 			descentM: sql<number | null>`sum(${stage.descentM})`,
@@ -267,8 +338,9 @@ export function listTourSummaries() {
 		.groupBy(tour.id)
 		.orderBy(sql`${tour.year} desc`, sql`${tour.startDate} desc`, tour.title)
 		.all()
-		.map(({ summaryMd, minLng, minLat, maxLng, maxLat, ...t }) => ({
+		.map(({ id, summaryMd, minLng, minLat, maxLng, maxLat, ...t }) => ({
 			...t,
+			trailMix: sumTrailMix(mixes.get(id) ?? []),
 			hasReport: !!summaryMd,
 			bbox:
 				minLng === null || minLat === null || maxLng === null || maxLat === null

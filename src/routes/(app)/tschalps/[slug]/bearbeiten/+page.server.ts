@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { resolve } from '$app/paths';
 import { db } from '#lib/server/db/index.ts';
-import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
+import { DIFFICULTIES, place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
 import { getPlace, placesNear } from '#lib/server/places.ts';
 import { formText } from '#lib/server/forms.ts';
 import { removeUpload } from '#lib/server/storage.ts';
@@ -10,6 +10,7 @@ import {
 	canEditTour,
 	parseGpxUploads,
 	readTourFields,
+	recomputeTrailMix,
 	renumberStages,
 	saveStages,
 	setParticipants,
@@ -61,6 +62,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			season: t.season,
 			startDate: t.startDate,
 			endDate: t.endDate,
+			kind: t.kind,
+			huts: t.huts,
 			summaryMd: t.summaryMd
 		},
 		stages: stagesOf(t.id).map((s) => {
@@ -80,6 +83,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
 				title: s.title,
 				distanceM: s.distanceM,
 				ascentM: s.ascentM,
+				difficulty: s.difficulty,
+				trailMix: s.trailMix,
 				nightPlaceId: s.nightPlaceId,
 				reportMd: s.reportMd,
 				end,
@@ -152,6 +157,10 @@ export const actions: Actions = {
 			return fail(400, { action: 'stages', errors: ['Ungültiges Datum.'] });
 		}
 		const nightPlaceId = String(form.get('nightPlaceId') ?? '') || null;
+		const difficulty = String(form.get('difficulty') ?? '') || null;
+		if (difficulty && !DIFFICULTIES.includes(difficulty as never)) {
+			return fail(400, { action: 'stages', errors: ['Ungültige Schwierigkeit.'] });
+		}
 		const reportMd = formText(form, 'reportMd') || null;
 		if (reportMd && reportMd.length > 20_000) {
 			return fail(400, { action: 'stages', errors: ['Der Tagesbericht ist zu lang.'] });
@@ -163,12 +172,37 @@ export const actions: Actions = {
 
 		db.transaction((tx) => {
 			tx.update(stage)
-				.set({ title, date, nightPlaceId, reportMd })
+				.set({
+					title,
+					date,
+					nightPlaceId,
+					reportMd,
+					difficulty: difficulty as (typeof DIFFICULTIES)[number] | null
+				})
 				.where(and(eq(stage.id, id), eq(stage.tourId, t.id)))
 				.run();
 			renumberStages(t.id, tx);
 		});
 		return { action: 'stages', message: 'Etappe gespeichert.' };
+	},
+
+	recomputeTrails: async ({ params, locals }) => {
+		const t = editableTour(params.slug, locals.user);
+		const { done, failed } = await recomputeTrailMix(t.id);
+		if (failed && !done) {
+			return fail(502, {
+				action: 'trails',
+				errors: [
+					'Die Wanderwegdaten von swisstopo sind gerade nicht erreichbar. Bitte später erneut versuchen.'
+				]
+			});
+		}
+		return {
+			action: 'trails',
+			message: failed
+				? `Wegtypen für ${done} Etappen berechnet, ${failed} fehlgeschlagen.`
+				: `Wegtypen für ${done} ${done === 1 ? 'Etappe' : 'Etappen'} berechnet.`
+		};
 	},
 
 	deleteStage: async ({ request, params, locals }) => {

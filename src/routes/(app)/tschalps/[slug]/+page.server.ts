@@ -29,6 +29,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			minEle: stage.minEle,
 			maxEle: stage.maxEle,
 			reportMd: stage.reportMd,
+			difficulty: stage.difficulty,
+			trailMix: stage.trailMix,
 			nightPlaceId: place.id,
 			nightPlaceName: place.name
 		})
@@ -60,6 +62,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			season: t.season,
 			startDate: t.startDate,
 			endDate: t.endDate,
+			kind: t.kind,
+			huts: t.huts,
 			summaryHtml: renderMarkdown(t.summaryMd)
 		},
 		stages: stages.map(({ reportMd, ...s }) => ({ ...s, reportHtml: renderMarkdown(reportMd) })),

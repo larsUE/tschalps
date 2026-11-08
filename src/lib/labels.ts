@@ -82,3 +82,69 @@ export const PLACE_STATUS_LABELS = {
 } as const;
 
 export type PlaceStatus = keyof typeof PLACE_STATUS_LABELS;
+
+// Tour categories --------------------------------------------------------------
+
+export const TOUR_KIND_LABELS = {
+	schueler: 'Schülertschalps',
+	lehrer: 'Lehrertschalps'
+} as const;
+
+export type TourKind = keyof typeof TOUR_KIND_LABELS;
+
+/** SAC hiking scale, as used on Swiss trail signs and in guide books. */
+export const DIFFICULTY_LABELS = {
+	T1: 'T1 · Wandern',
+	T2: 'T2 · Bergwandern',
+	T3: 'T3 · Anspruchsvolles Bergwandern',
+	T4: 'T4 · Alpinwandern',
+	T5: 'T5 · Anspruchsvolles Alpinwandern',
+	T6: 'T6 · Schwieriges Alpinwandern'
+} as const;
+
+export type Difficulty = keyof typeof DIFFICULTY_LABELS;
+
+/** Highest difficulty in a list (T1 < … < T6), or null. */
+export const maxDifficulty = (values: (Difficulty | null | undefined)[]) =>
+	values
+		.filter((d): d is Difficulty => !!d)
+		.sort()
+		.at(-1) ?? null;
+
+// Trail categories ------------------------------------------------------------
+
+/** Swiss trail marking: yellow, white-red-white, white-blue-white, other paths, no path. */
+export const TRAIL_CATEGORIES = ['gelb', 'rot', 'blau', 'unmarkiert', 'weglos'] as const;
+export type TrailCategory = (typeof TRAIL_CATEGORIES)[number];
+
+/** Metres walked per trail category; `unbekannt`: outside Switzerland (no data). */
+export type TrailMix = Record<TrailCategory, number> & { unbekannt?: number };
+
+export const TRAIL_LABELS: Record<TrailCategory, string> = {
+	gelb: 'Wanderweg',
+	rot: 'Bergwanderweg',
+	blau: 'Alpinwanderweg',
+	unmarkiert: 'Weg ohne Markierung',
+	weglos: 'Weglos'
+};
+
+export const TRAIL_COLORS: Record<TrailCategory, string> = {
+	gelb: '#e8b400',
+	rot: '#be2a1f',
+	blau: '#2a63a8',
+	unmarkiert: '#8c928d',
+	weglos: '#d9d9d1'
+};
+
+/** Adds up trail mixes (e.g. all stages of a tour); null when none was computed. */
+export function sumTrailMix(mixes: (TrailMix | null | undefined)[]): TrailMix | null {
+	const known = mixes.filter((m): m is TrailMix => !!m);
+	if (!known.length) return null;
+	const total = Object.fromEntries(TRAIL_CATEGORIES.map((c) => [c, 0])) as TrailMix;
+	total.unbekannt = 0;
+	for (const m of known) {
+		for (const c of TRAIL_CATEGORIES) total[c] += m[c] ?? 0;
+		total.unbekannt += m.unbekannt ?? 0;
+	}
+	return total;
+}

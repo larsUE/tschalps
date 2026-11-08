@@ -1,8 +1,9 @@
 import { DOMParser, type Element } from '@xmldom/xmldom';
-import { bbox, routeStats, toStageGeometry, type TrackPoint } from '#lib/geo.ts';
+import { bbox, distance, routeStats, toStageGeometry, type TrackPoint } from '#lib/geo.ts';
 
 export type GpxTrack = { name?: string; segments: TrackPoint[][] };
-export type GpxFile = { name?: string; tracks: GpxTrack[] };
+export type GpxWaypoint = { name?: string; lat: number; lng: number };
+export type GpxFile = { name?: string; tracks: GpxTrack[]; waypoints: GpxWaypoint[] };
 
 export class GpxError extends Error {}
 
@@ -30,7 +31,7 @@ function readPoint(el: Element): TrackPoint | null {
 	return point;
 }
 
-/** Reads tracks (trk/trkseg) and routes (rte) from a GPX document. Waypoints are ignored. */
+/** Reads tracks (trk/trkseg), routes (rte) and top-level waypoints (wpt) from a GPX document. */
 export function parseGpx(xml: string): GpxFile {
 	let doc;
 	try {
@@ -42,7 +43,11 @@ export function parseGpx(xml: string): GpxFile {
 	if (!root || root.localName !== 'gpx') throw new GpxError('Die Datei ist keine GPX-Datei.');
 
 	const metadata = directChild(root, 'metadata');
-	const file: GpxFile = { name: text(metadata && directChild(metadata, 'name')), tracks: [] };
+	const file: GpxFile = {
+		name: text(metadata && directChild(metadata, 'name')),
+		tracks: [],
+		waypoints: []
+	};
 
 	for (const trk of children(root, 'trk')) {
 		const segments = children(trk, 'trkseg')
@@ -63,6 +68,17 @@ export function parseGpx(xml: string): GpxFile {
 	}
 
 	if (!file.tracks.length) throw new GpxError('Die Datei enthält keine Route (keine Trackpunkte).');
+
+	for (const wpt of Array.from(root.childNodes)) {
+		if (wpt.nodeType !== 1 || (wpt as Element).localName !== 'wpt') continue;
+		const p = readPoint(wpt as Element);
+		if (p)
+			file.waypoints.push({
+				name: text(directChild(wpt as Element, 'name')),
+				lat: p.lat,
+				lng: p.lng
+			});
+	}
 	return file;
 }
 
@@ -79,16 +95,102 @@ export type StageDraft = {
 	date?: string;
 	title?: string;
 	segments: TrackPoint[][];
+	/** Waypoint that marked the end of this day (the night's place), when split at waypoints. */
+	night?: GpxWaypoint;
 	/** Index of the uploaded file, when this stage is exactly that whole file (keep the original). */
 	wholeFileIndex?: number;
 };
 
 /**
+ * Waypoint names that mark a night: "1", "2.", "1.Nacht", "Nacht 2: Alpe Moesola".
+ * Planners (e.g. SchweizMobil) number the night spots on a week-long route this way.
+ */
+const NIGHT_NAME = /nacht|^\s*\d+\s*\.?\s*$/i;
+/** A night waypoint further than this from the track is not used to split it. */
+const NIGHT_SNAP_M = 500;
+/** Ignore cuts closer than this (along the track) to the start, the end or another cut. */
+const MIN_DAY_M = 1000;
+
+/**
+ * Splits an undated track into days at its night waypoints. Numbered waypoints are
+ * taken in number order along the track (so a route crossing itself splits correctly);
+ * otherwise each waypoint goes to its nearest track point.
+ */
+export function splitAtNights(
+	segments: TrackPoint[][],
+	waypoints: GpxWaypoint[]
+): { segments: TrackPoint[][]; night?: GpxWaypoint }[] {
+	const nights = waypoints.filter((w) => w.name && NIGHT_NAME.test(w.name));
+	if (!nights.length) return [{ segments }];
+
+	// Flatten the track, remembering where segments start and the distance walked so far.
+	const flat: { p: TrackPoint; seg: number; along: number }[] = [];
+	let along = 0;
+	segments.forEach((segment, seg) =>
+		segment.forEach((p, i) => {
+			if (i > 0) along += distance(segment[i - 1], p);
+			flat.push({ p, seg, along });
+		})
+	);
+	const total = along;
+
+	const nearest = (w: GpxWaypoint, from: number) => {
+		let best = -1;
+		let bestD = NIGHT_SNAP_M;
+		for (let i = from; i < flat.length; i++) {
+			const d = distance(w, flat[i].p);
+			if (d <= bestD) [best, bestD] = [i, d];
+		}
+		return best;
+	};
+
+	const number = (w: GpxWaypoint) => Number(w.name!.match(/\d+/)?.[0] ?? NaN);
+	const numbered = nights.every((w) => Number.isFinite(number(w)));
+	let cuts: { index: number; night: GpxWaypoint }[] = [];
+	if (numbered) {
+		let from = 0;
+		for (const night of [...nights].sort((a, b) => number(a) - number(b))) {
+			const index = nearest(night, from);
+			if (index < 0) continue;
+			cuts.push({ index, night });
+			from = index + 1;
+		}
+	} else {
+		cuts = nights
+			.map((night) => ({ index: nearest(night, 0), night }))
+			.filter((c) => c.index >= 0)
+			.sort((a, b) => a.index - b.index);
+	}
+
+	let last = 0;
+	cuts = cuts.filter((c) => {
+		const a = flat[c.index].along;
+		if (a - last < MIN_DAY_M || total - a < MIN_DAY_M) return false;
+		last = a;
+		return true;
+	});
+
+	const days: { segments: TrackPoint[][]; night?: GpxWaypoint }[] = [];
+	let start = 0;
+	for (const end of [...cuts, { index: flat.length - 1, night: undefined }]) {
+		const daySegments: TrackPoint[][] = [];
+		for (let i = start; i <= end.index; i++) {
+			if (i === start || flat[i].seg !== flat[i - 1].seg) daySegments.push([]);
+			daySegments.at(-1)!.push(flat[i].p);
+		}
+		days.push({ segments: daySegments.filter((s) => s.length >= 2), night: end.night });
+		start = end.index; // the night's point ends one day and starts the next
+	}
+	return days.filter((d) => d.segments.length);
+}
+
+/**
  * Turns uploaded GPX files into one stage per day.
  * - Timestamped points are grouped by local date, across all files: one recording
  *   per day, a whole week in one file, or a day split over several files all work.
- * - Tracks without timestamps (e.g. planned routes) become one stage per track,
- *   in file-name order after the dated stages.
+ * - Tracks without timestamps (e.g. planned routes) are split at night waypoints
+ *   ("1", "2", "1.Nacht" …) when the file has them, else become one stage per track;
+ *   they follow the dated stages in file-name order.
  */
 export function splitIntoStages(files: { fileName: string; gpx: GpxFile }[]): StageDraft[] {
 	const byDate = new Map<
@@ -108,7 +210,17 @@ export function splitIntoStages(files: { fileName: string; gpx: GpxFile }[]): St
 			const timed = track.segments.every((s) => s.every((p) => p.time !== undefined));
 
 			if (!timed) {
-				undated.push({ title, segments: track.segments, files: new Set([index]) });
+				const days = splitAtNights(track.segments, gpx.waypoints);
+				for (const day of days) {
+					undated.push({
+						// A week's name is not a day's name.
+						title: days.length > 1 ? undefined : title,
+						segments: day.segments,
+						night: day.night,
+						files: new Set([index])
+					});
+				}
+				if (days.length > 1) splitFiles.add(index);
 				continue;
 			}
 

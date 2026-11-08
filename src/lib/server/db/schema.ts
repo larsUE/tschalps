@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
 import type { StageGeometry } from '#lib/geo.ts';
+import type { TrailMix } from '#lib/labels.ts';
 
 export * from './auth.schema';
 
@@ -31,6 +32,10 @@ export type { StageGeometry } from '#lib/geo.ts';
 // Archive --------------------------------------------------------------------
 
 export const SEASONS = ['fruehling', 'sommer', 'herbst', 'winter'] as const;
+/** Who went: a school tour with students or a tour among teachers. */
+export const TOUR_KINDS = ['schueler', 'lehrer'] as const;
+/** SAC hiking scale. */
+export const DIFFICULTIES = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'] as const;
 
 /** One Tschalps (one week-long tour). */
 export const tour = sqliteTable('tour', {
@@ -41,6 +46,9 @@ export const tour = sqliteTable('tour', {
 	season: text('season', { enum: SEASONS }),
 	startDate: text('start_date'), // ISO date (YYYY-MM-DD)
 	endDate: text('end_date'),
+	kind: text('kind', { enum: TOUR_KINDS }),
+	/** Nights in huts instead of stables. */
+	huts: integer('huts', { mode: 'boolean' }).notNull().default(false),
 	summaryMd: text('summary_md'),
 	createdBy: userRef('created_by'),
 	createdAt: createdAt(),
@@ -84,6 +92,9 @@ export const stage = sqliteTable(
 		descentM: real('descent_m'),
 		minEle: real('min_ele'),
 		maxEle: real('max_ele'),
+		difficulty: text('difficulty', { enum: DIFFICULTIES }),
+		/** Metres per trail category, from the swisstopo network (null: not computed). */
+		trailMix: text('trail_mix', { mode: 'json' }).$type<TrailMix>(),
 		nightPlaceId: text('night_place_id').references(() => place.id, { onDelete: 'set null' }),
 		createdAt: createdAt(),
 		updatedAt: updatedAt()

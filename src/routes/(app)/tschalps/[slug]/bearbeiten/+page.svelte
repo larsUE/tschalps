@@ -5,7 +5,9 @@
 	import GpxInput from '#lib/components/GpxInput.svelte';
 	import MarkdownHint from '#lib/components/MarkdownHint.svelte';
 	import TourFields from '#lib/components/TourFields.svelte';
+	import TrailMixBar from '#lib/components/TrailMixBar.svelte';
 	import { formatKm, formatM } from '#lib/geo.ts';
+	import { DIFFICULTY_LABELS } from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -15,6 +17,7 @@
 		m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
 
 	let uploading = $state(false);
+	let recomputing = $state(false);
 
 	const card = 'card flex flex-col gap-5 p-5 sm:p-6';
 	const primary = 'btn btn-primary';
@@ -112,6 +115,20 @@
 						/>
 						<div class="flex w-full flex-wrap items-end gap-2">
 							<label class="min-w-0 flex-1">
+								<span class="mb-1 block text-[13px] text-muted">Schwierigkeit (SAC-Skala)</span>
+								<select name="difficulty" value={s.difficulty ?? ''} class="field text-[15px]">
+									<option value="">–</option>
+									{#each Object.entries(DIFFICULTY_LABELS) as [value, text] (value)}
+										<option {value}>{text}</option>
+									{/each}
+								</select>
+							</label>
+						</div>
+						{#if s.trailMix}
+							<TrailMixBar mix={s.trailMix} legend class="w-full py-1" />
+						{/if}
+						<div class="flex w-full flex-wrap items-end gap-2">
+							<label class="min-w-0 flex-1">
 								<span class="mb-1 block text-[13px] text-muted"
 									>Übernachtung nach Tag {s.dayIndex}</span
 								>
@@ -169,6 +186,32 @@
 			{/each}
 		</ol>
 		<p class="text-sm text-muted">Die Tage werden nach Datum nummeriert.</p>
+		{#if data.stages.length}
+			<form
+				method="POST"
+				action="?/recomputeTrails"
+				use:enhance={() => {
+					recomputing = true;
+					return async ({ update }) => {
+						await update();
+						recomputing = false;
+					};
+				}}
+				class="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4"
+			>
+				<p class="max-w-md text-sm text-muted">
+					Die Anteile der Wegtypen werden beim Hochladen aus dem heutigen Wanderwegnetz von
+					swisstopo berechnet.
+				</p>
+				<button disabled={recomputing} class="btn btn-outline btn-sm min-h-11">
+					{recomputing ? 'Wird berechnet …' : 'Wegtypen neu berechnen'}
+				</button>
+				<FormErrors errors={feedback('trails')?.errors} />
+				{#if feedback('trails')?.message}
+					<p class="notice notice-ok w-full">{feedback('trails')?.message}</p>
+				{/if}
+			</form>
+		{/if}
 
 		<form
 			method="POST"

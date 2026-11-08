@@ -1,23 +1,49 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { formatKm, formatM } from '#lib/geo.ts';
-	import { SEASON_LABELS, formatDateRange, yearColors, type Season } from '#lib/labels.ts';
+	import TrailMixBar from '#lib/components/TrailMixBar.svelte';
+	import {
+		SEASON_LABELS,
+		TOUR_KIND_LABELS,
+		formatDateRange,
+		yearColors,
+		type Season,
+		type TourKind
+	} from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	let query = $state('');
 	let season = $state<Season | null>(null);
+	let kind = $state<TourKind | null>(null);
+	let huts = $state(false);
+	/** Number of days ('' = any). */
+	let days = $state('');
 
 	const colors = $derived(yearColors(data.tours.map((t) => t.year)));
 	const seasons = $derived(
 		(Object.keys(SEASON_LABELS) as Season[]).filter((s) => data.tours.some((t) => t.season === s))
 	);
 
+	const kinds = $derived(
+		(Object.keys(TOUR_KIND_LABELS) as TourKind[]).filter((k) =>
+			data.tours.some((t) => t.kind === k)
+		)
+	);
+	const hasHuts = $derived(data.tours.some((t) => t.huts));
+	const dayCounts = $derived(
+		[...new Set(data.tours.map((t) => t.days).filter((d) => d > 0))].sort((a, b) => a - b)
+	);
+	const filtering = $derived(!!(query.trim() || season || kind || huts || days));
+
 	const filtered = $derived(
 		data.tours.filter(
 			(t) =>
 				(!season || t.season === season) &&
+				(!kind || t.kind === kind) &&
+				(!huts || t.huts) &&
+				(!days || t.days === Number(days)) &&
 				(!query.trim() || `${t.title} ${t.year}`.toLowerCase().includes(query.trim().toLowerCase()))
 		)
 	);
@@ -89,6 +115,56 @@
 					{/each}
 				</div>
 			{/if}
+			{#if kinds.length}
+				<div role="group" aria-label="Art" class="segmented border border-line-strong">
+					<button type="button" aria-pressed={kind === null} onclick={() => (kind = null)}>
+						Alle
+					</button>
+					{#each kinds as k (k)}
+						<button type="button" aria-pressed={kind === k} onclick={() => (kind = k)}>
+							{TOUR_KIND_LABELS[k].replace('tschalps', '')}
+						</button>
+					{/each}
+				</div>
+			{/if}
+			{#if hasHuts}
+				<div class="segmented border border-line-strong">
+					<button type="button" aria-pressed={huts} onclick={() => (huts = !huts)}>
+						Hüttentschalps
+					</button>
+				</div>
+			{/if}
+			{#if dayCounts.length > 1}
+				<label
+					class="flex h-11 items-center gap-2 rounded-ui border border-line-strong bg-surface pl-3.5"
+				>
+					<span class="text-[15px] text-muted">Tage</span>
+					<select
+						bind:value={days}
+						class="h-full border-0 bg-transparent py-0 pr-8 pl-1 focus:ring-0"
+					>
+						<option value="">Alle</option>
+						{#each dayCounts as d (d)}
+							<option value={String(d)}>{d}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
+			{#if filtering}
+				<button
+					type="button"
+					class="cursor-pointer text-sm underline hover:text-trail"
+					onclick={() => {
+						query = '';
+						season = kind = null;
+						huts = false;
+						days = '';
+					}}
+				>
+					Filter zurücksetzen
+				</button>
+				<span class="nums text-sm text-muted">{filtered.length} von {data.tours.length}</span>
+			{/if}
 		</div>
 	{:else}
 		<div class="rounded-card border border-dashed border-line-strong p-10 text-center text-muted">
@@ -151,8 +227,11 @@
 									<p class="nums text-sm">
 										{formatKm(t.distanceM)} · ↑{formatM(t.ascentM)} · ↓{formatM(t.descentM)} · max.
 										{formatM(t.maxEle)} · {t.days}
-										{t.days === 1 ? 'Etappe' : 'Etappen'}
+										{t.days === 1 ? 'Tag' : 'Tage'}{t.difficulty ? ` · bis ${t.difficulty}` : ''}
 									</p>
+								{/if}
+								{#if t.trailMix}
+									<TrailMixBar mix={t.trailMix} class="max-w-80" />
 								{/if}
 								<div class="flex flex-wrap gap-1.5 text-[13px]">
 									{#if t.days}
@@ -166,6 +245,14 @@
 									{/if}
 									{#if t.hasReport}
 										<span class="rounded border border-line bg-paper px-2 py-0.5">Bericht</span>
+									{/if}
+									{#if t.kind}
+										<span class="rounded border border-line bg-paper px-2 py-0.5"
+											>{TOUR_KIND_LABELS[t.kind]}</span
+										>
+									{/if}
+									{#if t.huts}
+										<span class="rounded border border-line bg-paper px-2 py-0.5">Hütten</span>
 									{/if}
 								</div>
 							</div>

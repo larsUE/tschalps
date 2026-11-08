@@ -16,8 +16,8 @@
 	>
 	<span class="block font-semibold">GPX-Dateien auswählen</span>
 	<span class="mt-1 block text-sm text-muted">
-		Eine Datei pro Tag oder eine Datei für die ganze Woche. Mit Zeitstempeln werden die Tage
-		automatisch erkannt.
+		Eine Datei pro Tag oder eine Datei für die ganze Woche. Die Tage werden anhand der Zeitstempel
+		oder der nummerierten Wegpunkte für die Nächte (1, 2, 3 … wie bei SchweizMobil) erkannt.
 	</span>
 	<input
 		type="file"

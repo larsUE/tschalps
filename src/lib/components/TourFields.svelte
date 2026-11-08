@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SEASON_LABELS } from '#lib/labels.ts';
+	import { SEASON_LABELS, TOUR_KIND_LABELS } from '#lib/labels.ts';
 	import MarkdownHint from './MarkdownHint.svelte';
 
 	type Values = {
@@ -8,6 +8,8 @@
 		season?: string | null;
 		startDate?: string | null;
 		endDate?: string | null;
+		kind?: string | null;
+		huts?: boolean;
 		summaryMd?: string | null;
 	};
 
@@ -53,6 +55,19 @@
 	<p class="-mt-2 text-sm text-muted sm:col-span-6">
 		Leer lassen, wenn die GPX-Dateien Zeitstempel haben: Die Daten werden dann übernommen.
 	</p>
+	<label class="sm:col-span-3">
+		<span class={label}>Art</span>
+		<select name="kind" value={values.kind ?? ''} class={input}>
+			<option value="">–</option>
+			{#each Object.entries(TOUR_KIND_LABELS) as [value, text] (value)}
+				<option {value}>{text}</option>
+			{/each}
+		</select>
+	</label>
+	<label class="flex min-h-11 items-center gap-2.5 self-end sm:col-span-3">
+		<input type="checkbox" name="huts" checked={values.huts ?? false} class="check" />
+		Hüttentschalps
+	</label>
 	<label class="sm:col-span-6">
 		<span class={label}>Bericht / Zusammenfassung</span>
 		<textarea name="summaryMd" rows="8" class={input}>{values.summaryMd ?? ''}</textarea>
