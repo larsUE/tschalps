@@ -1,0 +1,26 @@
+# /etc/systemd/system/tschalps.service
+# The app: one Node process behind Caddy. Assumes the app lives in /srv/tschalps,
+# runs as user "tschalps", and /srv/tschalps/.env holds the production settings.
+[Unit]
+Description=Tschalps (SvelteKit)
+After=network.target
+
+[Service]
+Type=simple
+User=tschalps
+Group=tschalps
+WorkingDirectory=/srv/tschalps
+ExecStart=/usr/bin/node --env-file=.env build
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=5
+
+# Hardening: the app only writes to its data folder.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/tschalps/data
+
+[Install]
+WantedBy=multi-user.target

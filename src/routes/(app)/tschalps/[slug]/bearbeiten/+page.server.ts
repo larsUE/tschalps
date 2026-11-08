@@ -4,6 +4,7 @@ import { resolve } from '$app/paths';
 import { db } from '#lib/server/db/index.ts';
 import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
 import { getPlace, placesNear } from '#lib/server/places.ts';
+import { formText } from '#lib/server/forms.ts';
 import { removeUpload } from '#lib/server/storage.ts';
 import {
 	canEditTour,
@@ -80,6 +81,7 @@ export const load: PageServerLoad = ({ params, locals }) => {
 				distanceM: s.distanceM,
 				ascentM: s.ascentM,
 				nightPlaceId: s.nightPlaceId,
+				reportMd: s.reportMd,
 				end,
 				nightOptions: options
 			};
@@ -150,6 +152,10 @@ export const actions: Actions = {
 			return fail(400, { action: 'stages', errors: ['Ungültiges Datum.'] });
 		}
 		const nightPlaceId = String(form.get('nightPlaceId') ?? '') || null;
+		const reportMd = formText(form, 'reportMd') || null;
+		if (reportMd && reportMd.length > 20_000) {
+			return fail(400, { action: 'stages', errors: ['Der Tagesbericht ist zu lang.'] });
+		}
 		if (nightPlaceId) {
 			const p = db.select({ id: place.id }).from(place).where(eq(place.id, nightPlaceId)).get();
 			if (!p) return fail(400, { action: 'stages', errors: ['Diesen Ort gibt es nicht.'] });
@@ -157,7 +163,7 @@ export const actions: Actions = {
 
 		db.transaction((tx) => {
 			tx.update(stage)
-				.set({ title, date, nightPlaceId })
+				.set({ title, date, nightPlaceId, reportMd })
 				.where(and(eq(stage.id, id), eq(stage.tourId, t.id)))
 				.run();
 			renumberStages(t.id, tx);

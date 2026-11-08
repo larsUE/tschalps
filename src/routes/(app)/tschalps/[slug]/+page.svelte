@@ -98,6 +98,7 @@
 	});
 
 	const toggle = (id: string) => (selected = selected === id ? null : id);
+	const reports = $derived(data.stages.filter((s) => s.reportHtml));
 
 	/** Open photo in the lightbox (index into `gallery`). */
 	let openPhoto = $state<number | null>(null);
@@ -362,14 +363,43 @@
 		</section>
 	{/if}
 
-	{#if data.tour.summaryMd}
+	{#if data.tour.summaryHtml}
 		<section aria-labelledby="bericht" class="flex flex-col gap-4">
 			<h2 id="bericht" class="text-[32px] font-display leading-none">Bericht</h2>
 			<div class="card max-w-[72ch] px-6 py-6 sm:px-8">
-				<p class="text-[17px] leading-relaxed whitespace-pre-line text-[#2b332e]">
-					{data.tour.summaryMd}
-				</p>
+				<!-- Rendered and sanitised on the server (markdown.ts). -->
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				<div class="report">{@html data.tour.summaryHtml}</div>
 			</div>
+		</section>
+	{/if}
+
+	{#if reports.length}
+		<section aria-labelledby="tagebuch" class="flex flex-col gap-4">
+			<h2 id="tagebuch" class="text-[32px] font-display leading-none">Tagebuch</h2>
+			<ol class="flex max-w-[72ch] flex-col gap-4">
+				{#each reports as s (s.id)}
+					<li
+						id="tag-{s.dayIndex}"
+						class="card px-6 py-5 sm:px-8 {selected === s.id ? 'ring-[1.5px] ring-trail' : ''}"
+					>
+						<button
+							type="button"
+							onclick={() => toggle(s.id)}
+							class="mb-3 flex w-full cursor-pointer items-baseline gap-3 text-left"
+						>
+							<span class="nums text-[22px] font-medium text-trail-dark">{pad(s.dayIndex)}</span>
+							<span class="font-semibold"
+								>Tag {s.dayIndex}{s.date ? ` · ${formatShortDate(s.date)}` : ''}{s.title
+									? ` · ${s.title}`
+									: ''}</span
+							>
+						</button>
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+						<div class="report">{@html s.reportHtml}</div>
+					</li>
+				{/each}
+			</ol>
 		</section>
 	{/if}
 

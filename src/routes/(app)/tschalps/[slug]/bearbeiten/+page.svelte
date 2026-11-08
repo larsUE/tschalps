@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import FormErrors from '#lib/components/FormErrors.svelte';
 	import GpxInput from '#lib/components/GpxInput.svelte';
+	import MarkdownHint from '#lib/components/MarkdownHint.svelte';
 	import TourFields from '#lib/components/TourFields.svelte';
 	import { formatKm, formatM } from '#lib/geo.ts';
 	import type { PageProps } from './$types';
@@ -136,6 +137,21 @@
 								</a>
 							{/if}
 						</div>
+						<details class="w-full" open={!!s.reportMd}>
+							<summary class="cursor-pointer text-[13px] text-muted hover:text-ink">
+								Tagesbericht{s.reportMd ? '' : ' schreiben'}
+							</summary>
+							<label class="mt-2 block">
+								<span class="sr-only">Tagesbericht von Tag {s.dayIndex}</span>
+								<textarea
+									name="reportMd"
+									rows="6"
+									placeholder="Was ist an diesem Tag passiert?"
+									class="field text-[15px]">{s.reportMd ?? ''}</textarea
+								>
+								<MarkdownHint />
+							</label>
+						</details>
 						<button class="btn btn-outline btn-sm min-h-11"> Speichern </button>
 						<button
 							formaction="?/deleteStage"

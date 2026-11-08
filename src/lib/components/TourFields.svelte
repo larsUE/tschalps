@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { SEASON_LABELS } from '#lib/labels.ts';
+	import MarkdownHint from './MarkdownHint.svelte';
 
 	type Values = {
 		title?: string;
@@ -54,6 +55,7 @@
 	</p>
 	<label class="sm:col-span-6">
 		<span class={label}>Bericht / Zusammenfassung</span>
-		<textarea name="summaryMd" rows="5" class={input}>{values.summaryMd ?? ''}</textarea>
+		<textarea name="summaryMd" rows="8" class={input}>{values.summaryMd ?? ''}</textarea>
+		<MarkdownHint />
 	</label>
 </div>

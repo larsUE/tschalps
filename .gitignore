@@ -28,3 +28,6 @@ test-results
 
 # Local data (database, uploads)
 /data
+
+# Local backups
+/backups

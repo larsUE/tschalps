@@ -3,6 +3,7 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
 import { canEditTour } from '#lib/server/tours.ts';
+import { renderMarkdown } from '#lib/server/markdown.ts';
 import { MAX_TOUR_PHOTOS, tourPhotos } from '#lib/server/photos.ts';
 import { photoActions } from '#lib/server/photo-actions.ts';
 import type { Actions, PageServerLoad } from './$types';
@@ -27,6 +28,7 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			descentM: stage.descentM,
 			minEle: stage.minEle,
 			maxEle: stage.maxEle,
+			reportMd: stage.reportMd,
 			nightPlaceId: place.id,
 			nightPlaceName: place.name
 		})
@@ -58,9 +60,9 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			season: t.season,
 			startDate: t.startDate,
 			endDate: t.endDate,
-			summaryMd: t.summaryMd
+			summaryHtml: renderMarkdown(t.summaryMd)
 		},
-		stages,
+		stages: stages.map(({ reportMd, ...s }) => ({ ...s, reportHtml: renderMarkdown(reportMd) })),
 		participants,
 		creator,
 		photos: tourPhotos(t.id).map((p) => ({

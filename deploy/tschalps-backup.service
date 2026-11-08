@@ -1,0 +1,10 @@
+# /etc/systemd/system/tschalps-backup.service
+[Unit]
+Description=Tschalps backup (database snapshot + off-site copy)
+
+[Service]
+Type=oneshot
+User=tschalps
+Group=tschalps
+WorkingDirectory=/srv/tschalps
+ExecStart=/srv/tschalps/scripts/backup.sh

@@ -1,0 +1,12 @@
+# /etc/systemd/system/tschalps-backup.timer
+# Nightly at 03:15; runs at the next boot if the server was off at that time.
+[Unit]
+Description=Nightly Tschalps backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

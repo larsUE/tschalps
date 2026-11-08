@@ -1,0 +1,16 @@
+# /etc/caddy/Caddyfile – Caddy gets and renews the HTTPS certificate automatically.
+# Replace the domain, and set ORIGIN=https://tschalps.example.ch in /srv/tschalps/.env.
+tschalps.example.ch {
+	encode zstd gzip
+	# GPX files and photos are uploaded one per request; matches BODY_SIZE_LIMIT.
+	request_body {
+		max_size 25MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		X-Robots-Tag "noindex, nofollow"
+	}
+	reverse_proxy 127.0.0.1:3000
+}

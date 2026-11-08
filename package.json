@@ -24,7 +24,8 @@
 		"db:migrate": "node --env-file=.env -e \"const D=require('better-sqlite3');const {drizzle}=require('drizzle-orm/better-sqlite3');const {migrate}=require('drizzle-orm/better-sqlite3/migrator');migrate(drizzle(new D(process.env.DATABASE_URL)),{migrationsFolder:'drizzle'})\"",
 		"db:studio": "drizzle-kit studio",
 		"auth:schema": "auth generate --cwd scripts/auth-schema --config auth.ts --adapter drizzle --dialect sqlite --output ../../src/lib/server/db/auth.schema.ts --yes",
-		"admin:create": "node --env-file=.env scripts/create-admin.ts"
+		"admin:create": "node --env-file=.env scripts/create-admin.ts",
+		"backup": "scripts/backup.sh"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -41,6 +42,7 @@
 		"@types/geojson": "^7946.0.16",
 		"@types/node": "^24",
 		"@types/nodemailer": "^8.0.2",
+		"@types/sanitize-html": "^2.16.2",
 		"auth": "^1.6.24",
 		"better-auth": "^1.6.24",
 		"drizzle-kit": "^0.31.10",
@@ -65,7 +67,12 @@
 		"better-sqlite3": "^13.0.3",
 		"exifr": "^7.1.3",
 		"maplibre-gl": "^6.16.0",
+		"marked": "^18.1.3",
 		"nodemailer": "^10.3.1",
+		"sanitize-html": "^2.18.1",
 		"sharp": "^0.35.5"
+	},
+	"allowScripts": {
+		"better-sqlite3@13.0.3": true
 	}
 }
