@@ -127,7 +127,16 @@ export const tourPhoto = sqliteTable(
 
 // Explore --------------------------------------------------------------------
 
-export const PLACE_TYPES = ['stall', 'scheune', 'huette', 'biwak', 'wasser', 'anderes'] as const;
+export const PLACE_TYPES = [
+	'stall',
+	'scheune',
+	'huette',
+	'biwak',
+	'wasser',
+	'gipfel',
+	'pass',
+	'anderes'
+] as const;
 export const PLACE_STATUSES = ['aktiv', 'existiert_nicht_mehr', 'unbekannt'] as const;
 
 export const place = sqliteTable(

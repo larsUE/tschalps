@@ -60,18 +60,22 @@ export const PLACE_TYPE_LABELS = {
 	huette: 'Hütte',
 	biwak: 'Biwak',
 	wasser: 'Wasser',
+	gipfel: 'Gipfel',
+	pass: 'Pass',
 	anderes: 'Anderes'
 } as const;
 
 export type PlaceType = keyof typeof PLACE_TYPE_LABELS;
 
-/** Marker colours: places to sleep in the place blue, water in water blue. */
+/** Marker colours: places to sleep in the place blue, water in water blue, summits in ink. */
 export const PLACE_TYPE_COLORS: Record<PlaceType, string> = {
 	stall: '#1e4f7a',
 	scheune: '#1e4f7a',
 	huette: '#6e4c9e',
 	biwak: '#8a5a2b',
 	wasser: '#3d8fc6',
+	gipfel: '#17201b',
+	pass: '#5c7d2e',
 	anderes: '#59615b'
 };
 

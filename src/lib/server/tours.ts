@@ -159,6 +159,7 @@ export async function parseGpxUploads(form: FormData, field = 'gpx') {
 
 /** A night waypoint this close to a known place links the stage to it. */
 const NIGHT_PLACE_RADIUS_M = 300;
+const NOT_FOR_NIGHTS = new Set(['wasser', 'gipfel', 'pass']);
 
 /** Trail mix of a route, or null when the swisstopo tiles cannot be loaded right now. */
 async function trailMixOf(
@@ -187,8 +188,11 @@ export async function saveStages(tourId: string, upload: ParsedUpload) {
 				: toGpx(draft.title ?? 'Etappe', [{ name: draft.title, segments: draft.segments }]);
 		await writeUpload(gpxPath, content);
 
+		// Only places to sleep: a summit or pass next to the marker is not the night's place.
 		const night = draft.night
-			? placesNear(draft.night.lat, draft.night.lng, NIGHT_PLACE_RADIUS_M, 1)[0]
+			? placesNear(draft.night.lat, draft.night.lng, NIGHT_PLACE_RADIUS_M).find(
+					(p) => !NOT_FOR_NIGHTS.has(p.type)
+				)
 			: undefined;
 
 		rows.push({
