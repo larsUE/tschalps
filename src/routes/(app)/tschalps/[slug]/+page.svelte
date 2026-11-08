@@ -2,6 +2,9 @@
 	import { resolve } from '$app/paths';
 	import type { Feature, FeatureCollection, Geometry } from 'geojson';
 	import ElevationProfile from '#lib/components/ElevationProfile.svelte';
+	import PhotoGallery from '#lib/components/PhotoGallery.svelte';
+	import PhotoUploader from '#lib/components/PhotoUploader.svelte';
+	import PhotoMarkers from '#lib/map/PhotoMarkers.svelte';
 	import FitBounds from '#lib/map/FitBounds.svelte';
 	import HoverPoint from '#lib/map/HoverPoint.svelte';
 	import LayerSwitcher from '#lib/map/LayerSwitcher.svelte';
@@ -95,6 +98,31 @@
 	});
 
 	const toggle = (id: string) => (selected = selected === id ? null : id);
+
+	/** Open photo in the lightbox (index into `gallery`). */
+	let openPhoto = $state<number | null>(null);
+	const photoTime = new Intl.DateTimeFormat('de-CH', {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+		timeZone: 'Europe/Zurich'
+	});
+	const gallery = $derived(
+		data.photos.map((p) => ({
+			id: p.id,
+			caption: p.caption,
+			manage: data.canEdit,
+			meta: [p.dayIndex && `Tag ${p.dayIndex}`, p.takenAt && photoTime.format(p.takenAt)]
+				.filter(Boolean)
+				.join(' · ')
+		}))
+	);
+	const located = $derived(
+		data.photos.flatMap((p) =>
+			p.lat !== null && p.lng !== null
+				? [{ id: p.id, lat: p.lat, lng: p.lng, caption: p.caption }]
+				: []
+		)
+	);
 
 	const eyebrow = $derived(
 		[
@@ -206,6 +234,10 @@
 					onclick={(p) => toggle(p.key)}
 				/>
 				<StageMarkers points={markers} />
+				<PhotoMarkers
+					photos={located}
+					onopen={(id) => (openPhoto = data.photos.findIndex((p) => p.id === id))}
+				/>
 				<HoverPoint position={hoverPoint} />
 				<FitBounds bounds={focusBounds} />
 			</MapView>
@@ -309,6 +341,24 @@
 				height={220}
 				onhover={(p) => (hoverPoint = p)}
 			/>
+		</section>
+	{/if}
+
+	{#if data.photos.length || data.canEdit}
+		<section aria-labelledby="fotos" class="flex flex-col gap-4">
+			<div class="flex flex-wrap items-baseline justify-between gap-2">
+				<h2 id="fotos" class="text-[32px] font-display leading-none">Fotos</h2>
+				{#if data.canEdit}
+					<span class="nums text-sm text-muted">{data.photos.length} von {data.maxPhotos}</span>
+				{/if}
+			</div>
+			<PhotoGallery photos={gallery} bind:open={openPhoto} />
+			{#if data.canEdit}
+				<PhotoUploader
+					endpoint={resolve('/api/fotos/tour/[slug]', { slug: data.tour.slug })}
+					remaining={data.maxPhotos - data.photos.length}
+				/>
+			{/if}
 		</section>
 	{/if}
 

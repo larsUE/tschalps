@@ -190,6 +190,7 @@ export const actions: Actions = {
 		}
 		db.delete(tour).where(eq(tour.id, t.id)).run(); // stages, photos, participants cascade
 		await removeUpload(`gpx/${t.id}`);
+		await removeUpload(`photos/tours/${t.id}`);
 		redirect(303, resolve('/(app)/tschalps'));
 	}
 };

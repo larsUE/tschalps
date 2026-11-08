@@ -4,6 +4,8 @@ import { db } from '#lib/server/db/index.ts';
 import { placeComment, placeRevision, stage, tour, user } from '#lib/server/db/schema.ts';
 import { formText } from '#lib/server/forms.ts';
 import { getPlace, restorePlace } from '#lib/server/places.ts';
+import { placePhotos } from '#lib/server/photos.ts';
+import { photoActions } from '#lib/server/photo-actions.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 const nameOf = (id: string | null) =>
@@ -66,6 +68,14 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			updatedBy: nameOf(p.updatedBy)
 		},
 		comments,
+		photos: placePhotos(p.id).map((ph) => ({
+			id: ph.id,
+			caption: ph.caption,
+			takenAt: ph.takenAt?.getTime() ?? null,
+			uploader: nameOf(ph.uploadedBy),
+			// Uploaders and admins may caption and delete a photo.
+			manage: isAdmin || ph.uploadedBy === locals.user?.id
+		})),
 		nights,
 		revisions,
 		isAdmin
@@ -73,6 +83,10 @@ export const load: PageServerLoad = ({ params, locals }) => {
 };
 
 export const actions: Actions = {
+	...photoActions(
+		(params) => ({ kind: 'place', id: params.id }),
+		(photo, locals) => locals.user?.role === 'admin' || photo.uploadedBy === locals.user?.id
+	),
 	comment: async ({ request, params, locals }) => {
 		const p = getPlace(params.id);
 		if (!p || p.deletedAt) error(404, 'Diesen Ort gibt es nicht (mehr).');

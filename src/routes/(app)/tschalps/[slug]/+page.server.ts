@@ -3,7 +3,9 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
 import { canEditTour } from '#lib/server/tours.ts';
-import type { PageServerLoad } from './$types';
+import { MAX_TOUR_PHOTOS, tourPhotos } from '#lib/server/photos.ts';
+import { photoActions } from '#lib/server/photo-actions.ts';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ params, locals }) => {
 	const t = db.select().from(tour).where(eq(tour.slug, params.slug)).get();
@@ -61,6 +63,27 @@ export const load: PageServerLoad = ({ params, locals }) => {
 		stages,
 		participants,
 		creator,
+		photos: tourPhotos(t.id).map((p) => ({
+			id: p.id,
+			caption: p.caption,
+			lat: p.lat,
+			lng: p.lng,
+			stageId: p.stageId,
+			takenAt: p.takenAt?.getTime() ?? null,
+			dayIndex: stages.find((s) => s.id === p.stageId)?.dayIndex ?? null
+		})),
+		maxPhotos: MAX_TOUR_PHOTOS,
 		canEdit: canEditTour(locals.user!, t)
 	};
 };
+
+const tourBySlug = (slug: string) => {
+	const t = db.select().from(tour).where(eq(tour.slug, slug)).get();
+	if (!t) error(404, 'Diese Tschalps gibt es nicht.');
+	return t;
+};
+
+export const actions: Actions = photoActions(
+	(params) => ({ kind: 'tour', id: tourBySlug(params.slug).id }),
+	(_photo, locals, params) => canEditTour(locals.user!, tourBySlug(params.slug))
+);

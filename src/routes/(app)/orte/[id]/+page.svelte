@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import PhotoGallery from '#lib/components/PhotoGallery.svelte';
+	import PhotoUploader from '#lib/components/PhotoUploader.svelte';
 	import FitBounds from '#lib/map/FitBounds.svelte';
 	import LayerSwitcher from '#lib/map/LayerSwitcher.svelte';
 	import MapView from '#lib/map/MapView.svelte';
@@ -24,6 +26,17 @@
 	const stamp = new Intl.DateTimeFormat('de-CH', { dateStyle: 'medium' });
 
 	let commentKey = $state(0);
+
+	const gallery = $derived(
+		data.photos.map((ph) => ({
+			id: ph.id,
+			caption: ph.caption,
+			manage: ph.manage,
+			meta: [ph.uploader && `Foto: ${ph.uploader}`, ph.takenAt && stamp.format(ph.takenAt)]
+				.filter(Boolean)
+				.join(' · ')
+		}))
+	);
 </script>
 
 <svelte:head>
@@ -157,6 +170,17 @@
 			<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
 		</div>
 	</section>
+
+	{#if data.photos.length || !p.removed}
+		<section aria-labelledby="fotos" class="flex flex-col gap-4">
+			<h2 id="fotos" class="text-[32px] font-display leading-none">Fotos</h2>
+			{#if form?.photoError}<p class="notice notice-error">{form.photoError}</p>{/if}
+			<PhotoGallery photos={gallery} />
+			{#if !p.removed}
+				<PhotoUploader endpoint={resolve('/api/fotos/ort/[id]', { id: p.id })} />
+			{/if}
+		</section>
+	{/if}
 
 	<section aria-labelledby="beitraege" class="flex max-w-3xl flex-col gap-4">
 		<h2 id="beitraege" class="text-[32px] font-display leading-none">Erfahrungen &amp; Tipps</h2>
