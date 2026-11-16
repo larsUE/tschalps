@@ -95,6 +95,47 @@ export const load: PageServerLoad = ({ params, locals }) => {
 	};
 };
 
+/** Saves a day's entries from the stage form. Returns a failure, or null on success. */
+function saveStage(tourId: string, form: FormData) {
+	const id = String(form.get('id') ?? '');
+	const title =
+		String(form.get('title') ?? '')
+			.trim()
+			.slice(0, 120) || null;
+	const date = String(form.get('date') ?? '').trim() || null;
+	if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		return fail(400, { action: 'stages', errors: ['Ungültiges Datum.'] });
+	}
+	const nightPlaceId = String(form.get('nightPlaceId') ?? '') || null;
+	const difficulty = String(form.get('difficulty') ?? '') || null;
+	if (difficulty && !DIFFICULTIES.includes(difficulty as never)) {
+		return fail(400, { action: 'stages', errors: ['Ungültige Schwierigkeit.'] });
+	}
+	const reportMd = formText(form, 'reportMd') || null;
+	if (reportMd && reportMd.length > 20_000) {
+		return fail(400, { action: 'stages', errors: ['Der Tagesbericht ist zu lang.'] });
+	}
+	if (nightPlaceId) {
+		const p = db.select({ id: place.id }).from(place).where(eq(place.id, nightPlaceId)).get();
+		if (!p) return fail(400, { action: 'stages', errors: ['Diesen Ort gibt es nicht.'] });
+	}
+
+	db.transaction((tx) => {
+		tx.update(stage)
+			.set({
+				title,
+				date,
+				nightPlaceId,
+				reportMd,
+				difficulty: difficulty as (typeof DIFFICULTIES)[number] | null
+			})
+			.where(and(eq(stage.id, id), eq(stage.tourId, tourId)))
+			.run();
+		renumberStages(tourId, tx);
+	});
+	return null;
+}
+
 export const actions: Actions = {
 	save: async ({ request, params, locals }) => {
 		const t = editableTour(params.slug, locals.user);
@@ -146,44 +187,29 @@ export const actions: Actions = {
 
 	updateStage: async ({ request, params, locals }) => {
 		const t = editableTour(params.slug, locals.user);
-		const form = await request.formData();
-		const id = String(form.get('id') ?? '');
-		const title =
-			String(form.get('title') ?? '')
-				.trim()
-				.slice(0, 120) || null;
-		const date = String(form.get('date') ?? '').trim() || null;
-		if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			return fail(400, { action: 'stages', errors: ['Ungültiges Datum.'] });
-		}
-		const nightPlaceId = String(form.get('nightPlaceId') ?? '') || null;
-		const difficulty = String(form.get('difficulty') ?? '') || null;
-		if (difficulty && !DIFFICULTIES.includes(difficulty as never)) {
-			return fail(400, { action: 'stages', errors: ['Ungültige Schwierigkeit.'] });
-		}
-		const reportMd = formText(form, 'reportMd') || null;
-		if (reportMd && reportMd.length > 20_000) {
-			return fail(400, { action: 'stages', errors: ['Der Tagesbericht ist zu lang.'] });
-		}
-		if (nightPlaceId) {
-			const p = db.select({ id: place.id }).from(place).where(eq(place.id, nightPlaceId)).get();
-			if (!p) return fail(400, { action: 'stages', errors: ['Diesen Ort gibt es nicht.'] });
-		}
+		const result = saveStage(t.id, await request.formData());
+		return result ?? { action: 'stages', message: 'Etappe gespeichert.' };
+	},
 
-		db.transaction((tx) => {
-			tx.update(stage)
-				.set({
-					title,
-					date,
-					nightPlaceId,
-					reportMd,
-					difficulty: difficulty as (typeof DIFFICULTIES)[number] | null
-				})
-				.where(and(eq(stage.id, id), eq(stage.tourId, t.id)))
-				.run();
-			renumberStages(t.id, tx);
+	/** Saves the day's entries, then opens «Ort erfassen» at the day's end to add its night place. */
+	newPlace: async ({ request, params, locals }) => {
+		const t = editableTour(params.slug, locals.user);
+		const form = await request.formData();
+		const result = saveStage(t.id, form);
+		if (result) return result;
+
+		const id = String(form.get('id') ?? '');
+		const end = stagesOf(t.id)
+			.find((s) => s.id === id)
+			?.geojson?.coordinates.at(-1)
+			?.at(-1);
+		if (!end) return fail(400, { action: 'stages', errors: ['Diese Etappe hat keinen Endpunkt.'] });
+		const query = new URLSearchParams({
+			lat: end[1].toFixed(6),
+			lng: end[0].toFixed(6),
+			etappe: id
 		});
-		return { action: 'stages', message: 'Etappe gespeichert.' };
+		redirect(303, `${resolve('/(app)/orte/neu')}?${query}`);
 	},
 
 	recomputeTrails: async ({ params, locals }) => {

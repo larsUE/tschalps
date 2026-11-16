@@ -88,10 +88,14 @@
 					<form
 						method="POST"
 						action="?/updateStage"
-						use:enhance
+						use:enhance={() =>
+							({ update }) =>
+								update({ reset: false })}
 						class="flex flex-wrap items-end gap-2"
 					>
 						<input type="hidden" name="id" value={s.id} />
+						<!-- Default button: Enter in a field saves instead of triggering «Neuer Ort». -->
+						<button class="sr-only" tabindex="-1" aria-hidden="true">Speichern</button>
 						<span class="flex w-full items-baseline gap-2.5 font-semibold">
 							<span class="nums font-medium text-muted">{String(s.dayIndex).padStart(2, '0')}</span>
 							Tag {s.dayIndex}
@@ -144,14 +148,10 @@
 								</select>
 							</label>
 							{#if s.end}
-								<a
-									href={resolve(
-										`/(app)/orte/neu?${new URLSearchParams({ lat: s.end.lat.toFixed(6), lng: s.end.lng.toFixed(6), etappe: s.id })}`
-									)}
-									class="btn btn-outline btn-sm min-h-11"
-								>
+								<!-- Saves the day's entries first, then opens «Ort erfassen». -->
+								<button formaction="?/newPlace" class="btn btn-outline btn-sm min-h-11">
 									Neuer Ort
-								</a>
+								</button>
 							{/if}
 						</div>
 						<details class="w-full" open={!!s.reportMd}>
