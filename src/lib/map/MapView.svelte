@@ -8,6 +8,7 @@
 	import {
 		ALPS_BOUNDS,
 		BASEMAPS,
+		DEFAULT_OPACITY,
 		OVERLAYS,
 		buildStyle,
 		layerId,
@@ -19,13 +20,21 @@
 	type Props = {
 		basemap: BasemapId;
 		overlays: OverlayId[];
+		/** Base map opacity (0–1); routes and places stay fully opaque. */
+		opacity?: number;
 		/** Initial view [minLng, minLat, maxLng, maxLat]; defaults to the Swiss Alps. */
 		initialBounds?: [number, number, number, number] | null;
 		/** Rendered once the map is ready; children use getMapContext(). */
 		children?: Snippet;
 	};
 
-	let { basemap, overlays, initialBounds = null, children }: Props = $props();
+	let {
+		basemap,
+		overlays,
+		opacity = DEFAULT_OPACITY,
+		initialBounds = null,
+		children
+	}: Props = $props();
 
 	const LOCALE_DE = {
 		'NavigationControl.ZoomIn': 'Hineinzoomen',
@@ -57,7 +66,7 @@
 
 			instance = new maplibre.Map({
 				container,
-				style: buildStyle(basemap, overlays),
+				style: buildStyle(basemap, overlays, opacity),
 				bounds: initialBounds
 					? [
 							[initialBounds[0], initialBounds[1]],
@@ -108,6 +117,11 @@
 				overlays.includes(o.id) ? 'visible' : 'none'
 			);
 		}
+	});
+
+	$effect(() => {
+		if (!map) return;
+		for (const b of BASEMAPS) map.setPaintProperty(layerId(b.id), 'raster-opacity', opacity);
 	});
 </script>
 

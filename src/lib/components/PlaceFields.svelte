@@ -102,13 +102,22 @@
 		<legend class="label">Lage</legend>
 		<p class="-mt-1 text-sm text-muted">Klicke auf die Karte oder verschiebe die Markierung.</p>
 		<div class="relative h-80 overflow-hidden rounded-card border border-line bg-map">
-			<MapView basemap={prefs.basemap} overlays={prefs.overlays} initialBounds={zoomTo.bounds}>
+			<MapView
+				basemap={prefs.basemap}
+				overlays={prefs.overlays}
+				opacity={prefs.opacity}
+				initialBounds={zoomTo.bounds}
+			>
 				<PlaceLayer id="other-places" data={resolve('/api/places')} small />
 				<LocationMarker bind:position />
 				<MapEvents onclick={(p) => (position = p)} crosshair />
 				<FitBounds bounds={zoomTo.bounds} />
 			</MapView>
-			<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
+			<LayerSwitcher
+				bind:basemap={prefs.basemap}
+				bind:overlays={prefs.overlays}
+				bind:opacity={prefs.opacity}
+			/>
 		</div>
 		<div class="flex flex-wrap items-center justify-between gap-2 text-sm">
 			<span class="nums text-muted">

@@ -32,8 +32,8 @@ export type { StageGeometry } from '#lib/geo.ts';
 // Archive --------------------------------------------------------------------
 
 export const SEASONS = ['fruehling', 'sommer', 'herbst', 'winter'] as const;
-/** Who went: a school tour with students or a tour among teachers. */
-export const TOUR_KINDS = ['schueler', 'lehrer'] as const;
+/** Type of tour: Schüler-, Lehrer-, Aurora- or Zusatztschalps. */
+export const TOUR_KINDS = ['schueler', 'lehrer', 'aurora', 'zusatz'] as const;
 /** SAC hiking scale. */
 export const DIFFICULTIES = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'] as const;
 

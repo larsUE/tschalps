@@ -9,7 +9,13 @@
 	import RouteLayer, { type RouteProps } from '#lib/map/RouteLayer.svelte';
 	import { mapPreferences } from '#lib/map/preferences.svelte.ts';
 	import { formatKm, formatM } from '#lib/geo.ts';
-	import { SEASON_LABELS, formatDateRange, yearColors } from '#lib/labels.ts';
+	import {
+		SEASON_LABELS,
+		TOUR_KIND_LABELS,
+		formatDateRange,
+		yearColors,
+		type TourKind
+	} from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -19,6 +25,7 @@
 
 	let query = $state('');
 	let year = $state<number | null>(null);
+	let kind = $state<TourKind | null>(null);
 	/** Tour under the pointer, on the map or in the list. */
 	let hovered = $state<string | null>(null);
 	/** Tour shown in the card on the map. */
@@ -29,11 +36,17 @@
 	const colors = $derived(yearColors(data.tours.map((t) => t.year)));
 	const years = $derived([...colors.keys()]);
 	const olderYears = $derived(years.slice(QUICK_YEARS));
+	const kinds = $derived(
+		(Object.keys(TOUR_KIND_LABELS) as TourKind[]).filter((k) =>
+			data.tours.some((t) => t.kind === k)
+		)
+	);
 
 	const visible = $derived(
 		data.tours.filter(
 			(t) =>
 				(year === null || t.year === year) &&
+				(kind === null || t.kind === kind) &&
 				(!query.trim() || `${t.title} ${t.year}`.toLowerCase().includes(query.trim().toLowerCase()))
 		)
 	);
@@ -121,6 +134,32 @@
 			</section>
 		{/if}
 
+		{#if kinds.length}
+			<section class="flex flex-col gap-2.5">
+				<h2 class="eyebrow">Art</h2>
+				<div class="flex flex-wrap gap-1.5">
+					<button
+						type="button"
+						class="chip"
+						aria-pressed={kind === null}
+						onclick={() => (kind = null)}
+					>
+						Alle
+					</button>
+					{#each kinds as k (k)}
+						<button
+							type="button"
+							class="chip"
+							aria-pressed={kind === k}
+							onclick={() => (kind = kind === k ? null : k)}
+						>
+							{TOUR_KIND_LABELS[k].replace('tschalps', '')}
+						</button>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
 		<section class="flex flex-col gap-2">
 			<div class="flex items-baseline justify-between">
 				<h2 class="eyebrow">Tschalps</h2>
@@ -162,7 +201,7 @@
 	</aside>
 
 	<section aria-label="Karte" class="relative h-[60vh] shrink-0 bg-map lg:h-auto lg:flex-1">
-		<MapView basemap={prefs.basemap} overlays={prefs.overlays}>
+		<MapView basemap={prefs.basemap} overlays={prefs.overlays} opacity={prefs.opacity}>
 			<RouteLayer
 				id="routes"
 				data={resolve('/api/routes')}
@@ -182,7 +221,11 @@
 			/>
 			<FitBounds bounds={current?.bbox ?? null} />
 		</MapView>
-		<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
+		<LayerSwitcher
+			bind:basemap={prefs.basemap}
+			bind:overlays={prefs.overlays}
+			bind:opacity={prefs.opacity}
+		/>
 
 		{#if hoverInfo && hoverInfo.slug !== selected}
 			<div

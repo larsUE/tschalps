@@ -55,6 +55,11 @@ export type OverlayId = (typeof OVERLAYS)[number]['id'];
 
 export const DEFAULT_BASEMAP: BasemapId = 'landeskarte';
 
+/** Base map opacity (0–1). Faded by default so routes stand out on the colourful maps. */
+export const DEFAULT_OPACITY = 0.7;
+export const clampOpacity = (value: unknown) =>
+	typeof value === 'number' && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null;
+
 export const isBasemapId = (value: unknown): value is BasemapId =>
 	BASEMAPS.some((b) => b.id === value);
 
@@ -67,7 +72,11 @@ export const ALPS_BOUNDS: [[number, number], [number, number]] = [
 	[10.5, 47.0]
 ];
 
-export function buildStyle(basemap: BasemapId, overlays: OverlayId[]): StyleSpecification {
+export function buildStyle(
+	basemap: BasemapId,
+	overlays: OverlayId[],
+	opacity = DEFAULT_OPACITY
+): StyleSpecification {
 	const style: StyleSpecification = {
 		version: 8,
 		sources: {},
@@ -86,7 +95,8 @@ export function buildStyle(basemap: BasemapId, overlays: OverlayId[]): StyleSpec
 			id: layerId(b.id),
 			type: 'raster',
 			source: b.id,
-			layout: { visibility: b.id === basemap ? 'visible' : 'none' }
+			layout: { visibility: b.id === basemap ? 'visible' : 'none' },
+			paint: { 'raster-opacity': opacity }
 		});
 	}
 

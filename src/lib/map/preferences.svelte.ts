@@ -1,7 +1,9 @@
 import { onMount } from 'svelte';
 import {
 	DEFAULT_BASEMAP,
+	DEFAULT_OPACITY,
 	OVERLAYS,
+	clampOpacity,
 	isBasemapId,
 	type BasemapId,
 	type OverlayId
@@ -10,13 +12,14 @@ import {
 const STORAGE_KEY = 'tschalps.map';
 
 /**
- * Base map and overlays chosen by the viewer, remembered per browser.
+ * Base map, overlays and base map opacity chosen by the viewer, remembered per browser.
  * Call during component initialisation; bind the fields to <LayerSwitcher>.
  */
 export function mapPreferences() {
-	const prefs = $state<{ basemap: BasemapId; overlays: OverlayId[] }>({
+	const prefs = $state<{ basemap: BasemapId; overlays: OverlayId[]; opacity: number }>({
 		basemap: DEFAULT_BASEMAP,
-		overlays: []
+		overlays: [],
+		opacity: DEFAULT_OPACITY
 	});
 	let restored = false;
 
@@ -24,6 +27,7 @@ export function mapPreferences() {
 		try {
 			const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
 			if (isBasemapId(saved.basemap)) prefs.basemap = saved.basemap;
+			prefs.opacity = clampOpacity(saved.opacity) ?? DEFAULT_OPACITY;
 			if (Array.isArray(saved.overlays)) {
 				prefs.overlays = OVERLAYS.map((o) => o.id).filter((id) => saved.overlays.includes(id));
 			}

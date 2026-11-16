@@ -163,11 +163,20 @@
 		<div
 			class="relative h-80 overflow-hidden rounded-card border border-line bg-map lg:h-[420px] lg:flex-[3]"
 		>
-			<MapView basemap={prefs.basemap} overlays={prefs.overlays} initialBounds={point}>
+			<MapView
+				basemap={prefs.basemap}
+				overlays={prefs.overlays}
+				opacity={prefs.opacity}
+				initialBounds={point}
+			>
 				<PlaceLayer data={resolve('/api/places')} highlight={p.id} />
 				<FitBounds bounds={point} />
 			</MapView>
-			<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
+			<LayerSwitcher
+				bind:basemap={prefs.basemap}
+				bind:overlays={prefs.overlays}
+				bind:opacity={prefs.opacity}
+			/>
 		</div>
 	</section>
 

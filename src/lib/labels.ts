@@ -91,7 +91,9 @@ export type PlaceStatus = keyof typeof PLACE_STATUS_LABELS;
 
 export const TOUR_KIND_LABELS = {
 	schueler: 'Schülertschalps',
-	lehrer: 'Lehrertschalps'
+	lehrer: 'Lehrertschalps',
+	aurora: 'Auroratschalps',
+	zusatz: 'Zusatztschalps'
 } as const;
 
 export type TourKind = keyof typeof TOUR_KIND_LABELS;

@@ -251,7 +251,12 @@
 		<div
 			class="relative h-[60vh] min-h-80 overflow-hidden rounded-card border border-line bg-map lg:h-[600px] lg:flex-[3]"
 		>
-			<MapView basemap={prefs.basemap} overlays={prefs.overlays} initialBounds={tourBounds}>
+			<MapView
+				basemap={prefs.basemap}
+				overlays={prefs.overlays}
+				opacity={prefs.opacity}
+				initialBounds={tourBounds}
+			>
 				<RouteLayer
 					id="stages"
 					data={features}
@@ -268,7 +273,11 @@
 				<HoverPoint position={hoverPoint} />
 				<FitBounds bounds={focusBounds} />
 			</MapView>
-			<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
+			<LayerSwitcher
+				bind:basemap={prefs.basemap}
+				bind:overlays={prefs.overlays}
+				bind:opacity={prefs.opacity}
+			/>
 		</div>
 
 		<div class="flex flex-col gap-3 lg:flex-[2]">

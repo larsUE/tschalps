@@ -237,7 +237,7 @@
 		aria-label="Karte der Orte"
 		class="relative h-[60vh] shrink-0 bg-map lg:h-auto lg:flex-1"
 	>
-		<MapView basemap={prefs.basemap} overlays={prefs.overlays}>
+		<MapView basemap={prefs.basemap} overlays={prefs.overlays} opacity={prefs.opacity}>
 			<PlaceLayer
 				data={features}
 				highlight={hovered ?? selected}
@@ -249,7 +249,11 @@
 			<MapEvents onclick={addAt} onmove={(b) => (view = b)} crosshair={adding} />
 			<FitBounds bounds={focus} />
 		</MapView>
-		<LayerSwitcher bind:basemap={prefs.basemap} bind:overlays={prefs.overlays} />
+		<LayerSwitcher
+			bind:basemap={prefs.basemap}
+			bind:overlays={prefs.overlays}
+			bind:opacity={prefs.opacity}
+		/>
 
 		{#if adding}
 			<p
