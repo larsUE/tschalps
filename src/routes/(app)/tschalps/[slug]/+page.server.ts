@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
-import { canEditTour } from '#lib/server/tours.ts';
+import { canEditTour, stopsOf } from '#lib/server/tours.ts';
 import { renderMarkdown } from '#lib/server/markdown.ts';
 import { MAX_TOUR_PHOTOS, tourPhotos } from '#lib/server/photos.ts';
 import { photoActions } from '#lib/server/photo-actions.ts';
@@ -41,6 +41,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
 		.orderBy(asc(stage.dayIndex))
 		.all();
 
+	const stops = stopsOf(stages);
+
 	const participants = db
 		.select({ name: user.name })
 		.from(tourParticipant)
@@ -66,7 +68,11 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			huts: t.huts,
 			summaryHtml: renderMarkdown(t.summaryMd)
 		},
-		stages: stages.map(({ reportMd, ...s }) => ({ ...s, reportHtml: renderMarkdown(reportMd) })),
+		stages: stages.map(({ reportMd, ...s }) => ({
+			...s,
+			reportHtml: renderMarkdown(reportMd),
+			stops: stops.get(s.id) ?? []
+		})),
 		participants,
 		creator,
 		photos: tourPhotos(t.id).map((p) => ({

@@ -14,6 +14,7 @@
 	import { mapPreferences } from '#lib/map/preferences.svelte.ts';
 	import { formatKm, formatM, profile, type ProfilePoint } from '#lib/geo.ts';
 	import {
+		PLACE_TYPE_COLORS,
 		SEASON_LABELS,
 		TOUR_KIND_LABELS,
 		TRAIL_COLOR,
@@ -325,6 +326,29 @@
 							</span>
 							{#if s.trailMix}<TrailMixBar mix={s.trailMix} class="mt-1.5 max-w-60" />{/if}
 						</button>
+						{#if s.stops.length}
+							<p
+								class="col-start-2 -mt-1.5 mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-soft"
+							>
+								<span class="text-muted">Unterwegs:</span>
+								{#each s.stops as stop, i (stop.placeId)}
+									<span class="inline-flex items-center gap-1">
+										<span
+											class="size-2 shrink-0 rounded-full"
+											style:background={PLACE_TYPE_COLORS[stop.type]}
+											aria-hidden="true"
+										></span>
+										<span
+											><a
+												href={resolve('/(app)/orte/[id]', { id: stop.placeId })}
+												class="hover:underline">{stop.name}</a
+											>{#if stop.note}<span class="text-muted">&nbsp;({stop.note})</span
+												>{/if}{#if i < s.stops.length - 1},{/if}</span
+										>
+									</span>
+								{/each}
+							</p>
+						{/if}
 						{#if s.nightPlaceId}
 							<a
 								href={resolve('/(app)/orte/[id]', { id: s.nightPlaceId })}

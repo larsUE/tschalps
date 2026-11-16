@@ -1,9 +1,18 @@
-import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { sumTrailMix, type Difficulty, type TrailMix } from '#lib/labels.ts';
 import { formText } from './forms.ts';
 import { db } from '#lib/server/db/index.ts';
-import { stage, tour, tourParticipant, SEASONS, TOUR_KINDS } from '#lib/server/db/schema.ts';
+import {
+	place,
+	stage,
+	stagePlace,
+	tour,
+	tourParticipant,
+	SEASONS,
+	TOUR_KINDS
+} from '#lib/server/db/schema.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
+import { locateOnRoute, type StageGeometry } from '#lib/geo.ts';
 import {
 	GpxError,
 	parseGpx,
@@ -299,6 +308,52 @@ export function setParticipants(tourId: string, userIds: string[], tx: Tx | type
 
 export const stagesOf = (tourId: string) =>
 	db.select().from(stage).where(eq(stage.tourId, tourId)).orderBy(asc(stage.dayIndex)).all();
+
+export type StageStop = {
+	placeId: string;
+	name: string;
+	type: (typeof place.$inferSelect)['type'];
+	note: string | null;
+};
+
+/**
+ * The places passed on each day (summits, lakes …), in the order the route passes them.
+ * Removed places are left out.
+ */
+export function stopsOf(stages: { id: string; geojson: StageGeometry | null }[]) {
+	const byStage = new Map<string, StageStop[]>(stages.map((s) => [s.id, []]));
+	if (!stages.length) return byStage;
+	const rows = db
+		.select({
+			stageId: stagePlace.stageId,
+			placeId: place.id,
+			name: place.name,
+			type: place.type,
+			lat: place.lat,
+			lng: place.lng,
+			note: stagePlace.note
+		})
+		.from(stagePlace)
+		.innerJoin(place, and(eq(place.id, stagePlace.placeId), isNull(place.deletedAt)))
+		.where(
+			inArray(
+				stagePlace.stageId,
+				stages.map((s) => s.id)
+			)
+		)
+		.all();
+	const geometry = new Map(stages.map((s) => [s.id, s.geojson]));
+	const along = new Map<(typeof rows)[number], number>();
+	for (const r of rows) {
+		const g = geometry.get(r.stageId);
+		along.set(r, g ? locateOnRoute(g, r).alongM : 0);
+	}
+	rows.sort((a, b) => along.get(a)! - along.get(b)! || a.name.localeCompare(b.name, 'de'));
+	for (const { stageId, placeId, name, type, note } of rows) {
+		byStage.get(stageId)?.push({ placeId, name, type, note });
+	}
+	return byStage;
+}
 
 // Overviews -------------------------------------------------------------------
 

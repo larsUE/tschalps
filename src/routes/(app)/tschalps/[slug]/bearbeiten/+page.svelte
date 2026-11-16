@@ -7,7 +7,7 @@
 	import TourFields from '#lib/components/TourFields.svelte';
 	import TrailMixBar from '#lib/components/TrailMixBar.svelte';
 	import { formatKm, formatM } from '#lib/geo.ts';
-	import { DIFFICULTY_LABELS } from '#lib/labels.ts';
+	import { DIFFICULTY_LABELS, PLACE_TYPE_COLORS, PLACE_TYPE_LABELS } from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -154,6 +154,87 @@
 								</button>
 							{/if}
 						</div>
+						<fieldset class="w-full">
+							<legend class="mb-1 block text-[13px] text-muted">
+								Unterwegs an Tag {s.dayIndex} (Gipfel, Pässe, Gewässer …)
+							</legend>
+							{#if s.stops.length}
+								<ul class="mb-2 flex flex-col gap-1.5">
+									{#each s.stops as stop (stop.placeId)}
+										<li class="flex flex-wrap items-center gap-2">
+											<span class="flex min-w-40 flex-1 items-center gap-2 text-[15px]">
+												<span
+													class="size-2.5 shrink-0 rounded-full"
+													style:background={PLACE_TYPE_COLORS[stop.type]}
+												></span>
+												<span class="min-w-0 truncate">{stop.name}</span>
+												<span class="text-[13px] text-muted">{PLACE_TYPE_LABELS[stop.type]}</span>
+											</span>
+											<input
+												name="note:{stop.placeId}"
+												value={stop.note ?? ''}
+												maxlength="80"
+												placeholder="Notiz, z. B. gebadet"
+												aria-label="Notiz zu {stop.name}"
+												class="field min-w-40 flex-1 text-[15px]"
+											/>
+											<button
+												formaction="?/removeStop"
+												name="removeStop"
+												value={stop.placeId}
+												class="btn btn-icon hover:bg-paper"
+												aria-label="{stop.name} von Tag {s.dayIndex} entfernen"
+												title="Entfernen"
+											>
+												<svg
+													class="size-4"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" /></svg
+												>
+											</button>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+							<div class="flex flex-wrap items-end gap-2">
+								{#if s.stopOptions.length}
+									<select
+										name="addStopId"
+										aria-label="Ort unterwegs an Tag {s.dayIndex} hinzufügen"
+										class="field w-full min-w-0 text-[15px] sm:w-auto sm:flex-1"
+									>
+										<option value="">– Ort entlang der Route wählen –</option>
+										{#each s.stopOptions as o (o.id)}
+											<option value={o.id}
+												>{o.name} · {PLACE_TYPE_LABELS[o.type]} ({o.offM < 50
+													? 'an der Route'
+													: `${distanceLabel(o.offM)} daneben`})</option
+											>
+										{/each}
+									</select>
+									<button formaction="?/addStop" class="btn btn-outline btn-sm min-h-11">
+										Hinzufügen
+									</button>
+								{:else}
+									<p class="flex-1 text-sm text-muted">
+										Keine weiteren erfassten Orte in der Nähe der Route.
+									</p>
+								{/if}
+								{#if s.end}
+									<button
+										formaction="?/newPlace"
+										name="als"
+										value="unterwegs"
+										class="btn btn-outline btn-sm min-h-11"
+									>
+										Neuer Ort
+									</button>
+								{/if}
+							</div>
+						</fieldset>
 						<details class="w-full" open={!!s.reportMd}>
 							<summary class="cursor-pointer text-[13px] text-muted hover:text-ink">
 								Tagesbericht{s.reportMd ? '' : ' schreiben'}

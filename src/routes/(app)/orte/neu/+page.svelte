@@ -20,8 +20,8 @@
 		<h1 class="text-[56px] font-display sm:text-[72px]">Ort erfassen</h1>
 		{#if data.stage}
 			<p class="notice notice-ok">
-				Wird als Übernachtung von Tag {data.stage.dayIndex} der Tschalps «{data.stage.title}»
-				eingetragen.
+				Wird {data.stop ? 'unterwegs bei' : 'als Übernachtung von'} Tag {data.stage.dayIndex} der Tschalps
+				«{data.stage.title}» eingetragen.
 			</p>
 		{/if}
 	</div>
@@ -59,7 +59,10 @@
 		{/if}
 
 		<PlaceFields values={form?.values ?? data.values} />
-		{#if data.stage}<input type="hidden" name="stageId" value={data.stage.id} />{/if}
+		{#if data.stage}
+			<input type="hidden" name="stageId" value={data.stage.id} />
+			{#if data.stop}<input type="hidden" name="als" value="unterwegs" />{/if}
+		{/if}
 
 		<div class="flex justify-end">
 			<button disabled={pending} class="btn btn-primary">

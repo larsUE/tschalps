@@ -105,7 +105,7 @@
 			<span class="eyebrow text-trail-dark">Orte</span>
 			<h1 class="text-[44px] font-display">Ställe &amp; Scheunen</h1>
 			<p class="text-sm text-ink-soft">
-				Übernachtungsorte und Wasserstellen, gesammelt von allen Mitgliedern.
+				Übernachtungsorte, Gewässer, Gipfel und Pässe, gesammelt von allen Mitgliedern.
 			</p>
 		</div>
 

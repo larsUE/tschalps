@@ -1,7 +1,14 @@
 import { error, fail } from '@sveltejs/kit';
 import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
-import { placeComment, placeRevision, stage, tour, user } from '#lib/server/db/schema.ts';
+import {
+	placeComment,
+	placeRevision,
+	stage,
+	stagePlace,
+	tour,
+	user
+} from '#lib/server/db/schema.ts';
 import { formText } from '#lib/server/forms.ts';
 import { getPlace, restorePlace } from '#lib/server/places.ts';
 import { placePhotos } from '#lib/server/photos.ts';
@@ -46,6 +53,22 @@ export const load: PageServerLoad = ({ params, locals }) => {
 		.orderBy(desc(tour.year), asc(stage.dayIndex))
 		.all();
 
+	const visits = db
+		.select({
+			slug: tour.slug,
+			title: tour.title,
+			year: tour.year,
+			dayIndex: stage.dayIndex,
+			date: stage.date,
+			note: stagePlace.note
+		})
+		.from(stagePlace)
+		.innerJoin(stage, eq(stage.id, stagePlace.stageId))
+		.innerJoin(tour, eq(tour.id, stage.tourId))
+		.where(eq(stagePlace.placeId, p.id))
+		.orderBy(desc(tour.year), asc(stage.dayIndex))
+		.all();
+
 	const revisions =
 		db.select({ n: count() }).from(placeRevision).where(eq(placeRevision.placeId, p.id)).get()?.n ??
 		0;
@@ -77,6 +100,7 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			manage: isAdmin || ph.uploadedBy === locals.user?.id
 		})),
 		nights,
+		visits,
 		revisions,
 		isAdmin
 	};

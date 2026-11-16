@@ -160,6 +160,26 @@ export const place = sqliteTable(
 	(t) => [index('place_lat_lng_idx').on(t.lat, t.lng)]
 );
 
+/** Places passed on a day: summits, passes, lakes to swim in … (the night has its own column). */
+export const stagePlace = sqliteTable(
+	'stage_place',
+	{
+		stageId: text('stage_id')
+			.notNull()
+			.references(() => stage.id, { onDelete: 'cascade' }),
+		placeId: text('place_id')
+			.notNull()
+			.references(() => place.id, { onDelete: 'cascade' }),
+		/** Short note, e.g. «gebadet» or «Mittagsrast». */
+		note: text('note'),
+		createdAt: createdAt()
+	},
+	(t) => [
+		primaryKey({ columns: [t.stageId, t.placeId] }),
+		index('stage_place_place_idx').on(t.placeId)
+	]
+);
+
 export const PLACE_REVISION_ACTIONS = ['create', 'update', 'status', 'delete', 'restore'] as const;
 
 /** Every change to a place, so edits by members can be reviewed and reverted. */

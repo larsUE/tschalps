@@ -1,9 +1,18 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { resolve } from '$app/paths';
 import { db } from '#lib/server/db/index.ts';
-import { DIFFICULTIES, place, stage, tour, tourParticipant, user } from '#lib/server/db/schema.ts';
-import { getPlace, placesNear } from '#lib/server/places.ts';
+import {
+	DIFFICULTIES,
+	place,
+	stage,
+	stagePlace,
+	tour,
+	tourParticipant,
+	user
+} from '#lib/server/db/schema.ts';
+import { getPlace, placesAlong, placesNear } from '#lib/server/places.ts';
+import { pointAlongRoute } from '#lib/geo.ts';
 import { formText } from '#lib/server/forms.ts';
 import { removeUpload } from '#lib/server/storage.ts';
 import {
@@ -15,6 +24,7 @@ import {
 	saveStages,
 	setParticipants,
 	stagesOf,
+	stopsOf,
 	uniqueSlug
 } from '#lib/server/tours.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
@@ -22,6 +32,10 @@ import type { Actions, PageServerLoad } from './$types';
 
 /** Places within this distance of a day's end are offered as that night's place. */
 const NIGHT_RADIUS_M = 3000;
+/** Places within this distance of a day's route are offered as places passed that day. */
+const STOP_RADIUS_M = 1000;
+/** Longest note on a place passed («gebadet», «Mittagsrast» …). */
+const MAX_STOP_NOTE = 80;
 
 function editableTour(slug: string, sessionUser: SessionUser | undefined) {
 	const t = db.select().from(tour).where(eq(tour.slug, slug)).get();
@@ -54,6 +68,9 @@ export const load: PageServerLoad = ({ params, locals }) => {
 		.filter((m) => !m.banned || participantIds.has(m.id))
 		.map((m) => ({ id: m.id, name: m.name, participant: participantIds.has(m.id) }));
 
+	const stages = stagesOf(t.id);
+	const stops = stopsOf(stages);
+
 	return {
 		tour: {
 			slug: t.slug,
@@ -66,7 +83,7 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			huts: t.huts,
 			summaryMd: t.summaryMd
 		},
-		stages: stagesOf(t.id).map((s) => {
+		stages: stages.map((s) => {
 			// Where the day ends: suggest places to sleep nearby.
 			const last = s.geojson?.coordinates.at(-1)?.at(-1);
 			const end = last ? { lng: last[0], lat: last[1] } : null;
@@ -76,6 +93,19 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			if (linked && !options.some((o) => o.id === linked.id)) {
 				options.unshift({ id: linked.id, name: linked.name, distanceM: NaN });
 			}
+			// Places passed that day, and places along the route that could be added.
+			const stageStops = stops.get(s.id) ?? [];
+			const linkedStops = new Set(stageStops.map((x) => x.placeId));
+			const bbox =
+				s.minLng != null && s.minLat != null && s.maxLng != null && s.maxLat != null
+					? ([s.minLng, s.minLat, s.maxLng, s.maxLat] as [number, number, number, number])
+					: null;
+			const stopOptions =
+				s.geojson && bbox
+					? placesAlong(s.geojson, bbox, STOP_RADIUS_M)
+							.filter((p) => !linkedStops.has(p.id))
+							.map((p) => ({ id: p.id, name: p.name, type: p.type, offM: p.offM }))
+					: [];
 			return {
 				id: s.id,
 				dayIndex: s.dayIndex,
@@ -88,7 +118,9 @@ export const load: PageServerLoad = ({ params, locals }) => {
 				nightPlaceId: s.nightPlaceId,
 				reportMd: s.reportMd,
 				end,
-				nightOptions: options
+				nightOptions: options,
+				stops: stageStops,
+				stopOptions
 			};
 		}),
 		members
@@ -98,6 +130,12 @@ export const load: PageServerLoad = ({ params, locals }) => {
 /** Saves a day's entries from the stage form. Returns a failure, or null on success. */
 function saveStage(tourId: string, form: FormData) {
 	const id = String(form.get('id') ?? '');
+	const own = db
+		.select({ id: stage.id })
+		.from(stage)
+		.where(and(eq(stage.id, id), eq(stage.tourId, tourId)))
+		.get();
+	if (!own) return fail(404, { action: 'stages', errors: ['Etappe nicht gefunden.'] });
 	const title =
 		String(form.get('title') ?? '')
 			.trim()
@@ -119,6 +157,10 @@ function saveStage(tourId: string, form: FormData) {
 		const p = db.select({ id: place.id }).from(place).where(eq(place.id, nightPlaceId)).get();
 		if (!p) return fail(400, { action: 'stages', errors: ['Diesen Ort gibt es nicht.'] });
 	}
+	// Notes on places passed, sent as `note:<placeId>`.
+	const notes = [...form.keys()]
+		.filter((k) => k.startsWith('note:'))
+		.map((k) => ({ placeId: k.slice(5), note: formText(form, k).slice(0, MAX_STOP_NOTE) || null }));
 
 	db.transaction((tx) => {
 		tx.update(stage)
@@ -131,6 +173,12 @@ function saveStage(tourId: string, form: FormData) {
 			})
 			.where(and(eq(stage.id, id), eq(stage.tourId, tourId)))
 			.run();
+		for (const { placeId, note } of notes) {
+			tx.update(stagePlace)
+				.set({ note })
+				.where(and(eq(stagePlace.stageId, id), eq(stagePlace.placeId, placeId)))
+				.run();
+		}
 		renumberStages(tourId, tx);
 	});
 	return null;
@@ -198,18 +246,59 @@ export const actions: Actions = {
 		const result = saveStage(t.id, form);
 		if (result) return result;
 
+		// A night's place starts at the day's end, a place passed on the way in its middle.
 		const id = String(form.get('id') ?? '');
-		const end = stagesOf(t.id)
-			.find((s) => s.id === id)
-			?.geojson?.coordinates.at(-1)
-			?.at(-1);
-		if (!end) return fail(400, { action: 'stages', errors: ['Diese Etappe hat keinen Endpunkt.'] });
+		const stop = form.get('als') === 'unterwegs';
+		const geometry = stagesOf(t.id).find((s) => s.id === id)?.geojson;
+		const at = geometry && pointAlongRoute(geometry, stop ? 0.5 : 1);
+		if (!at) return fail(400, { action: 'stages', errors: ['Diese Etappe hat keine Route.'] });
 		const query = new URLSearchParams({
-			lat: end[1].toFixed(6),
-			lng: end[0].toFixed(6),
-			etappe: id
+			lat: at.lat.toFixed(6),
+			lng: at.lng.toFixed(6),
+			etappe: id,
+			...(stop && { als: 'unterwegs' })
 		});
 		redirect(303, `${resolve('/(app)/orte/neu')}?${query}`);
+	},
+
+	/** Saves the day's entries and links the chosen place as passed that day. */
+	addStop: async ({ request, params, locals }) => {
+		const t = editableTour(params.slug, locals.user);
+		const form = await request.formData();
+		const result = saveStage(t.id, form);
+		if (result) return result;
+
+		const placeId = String(form.get('addStopId') ?? '');
+		if (!placeId) return fail(400, { action: 'stages', errors: ['Bitte wähle einen Ort.'] });
+		const p = db
+			.select({ id: place.id })
+			.from(place)
+			.where(and(eq(place.id, placeId), isNull(place.deletedAt)))
+			.get();
+		if (!p) return fail(400, { action: 'stages', errors: ['Diesen Ort gibt es nicht.'] });
+		db.insert(stagePlace)
+			.values({ stageId: String(form.get('id')), placeId })
+			.onConflictDoNothing()
+			.run();
+		return { action: 'stages', message: 'Ort hinzugefügt.' };
+	},
+
+	/** Saves the day's entries and unlinks a place passed that day. */
+	removeStop: async ({ request, params, locals }) => {
+		const t = editableTour(params.slug, locals.user);
+		const form = await request.formData();
+		const result = saveStage(t.id, form);
+		if (result) return result;
+
+		db.delete(stagePlace)
+			.where(
+				and(
+					eq(stagePlace.stageId, String(form.get('id'))),
+					eq(stagePlace.placeId, String(form.get('removeStop') ?? ''))
+				)
+			)
+			.run();
+		return { action: 'stages', message: 'Ort entfernt.' };
 	},
 
 	recomputeTrails: async ({ params, locals }) => {

@@ -175,6 +175,73 @@ export function profile(geometries: StageGeometry[]): ProfilePoint[] {
 	return out;
 }
 
+/**
+ * Where a point lies relative to a route: how far along the route its closest spot is
+ * (`alongM`) and how far off the route it is (`offM`). Gaps between segments don't count.
+ */
+export function locateOnRoute(
+	geometry: StageGeometry,
+	point: { lng: number; lat: number }
+): { alongM: number; offM: number } {
+	// Local flat projection around the point; plenty accurate over a few kilometres.
+	const mPerLat = (Math.PI / 180) * EARTH_RADIUS_M;
+	const mPerLng = mPerLat * Math.cos(rad(point.lat));
+	const xy = (c: number[]) => [(c[0] - point.lng) * mPerLng, (c[1] - point.lat) * mPerLat];
+
+	let best = { alongM: 0, offM: Infinity };
+	let along = 0;
+	for (const line of geometry.coordinates) {
+		for (let i = 1; i < line.length; i++) {
+			const [ax, ay] = xy(line[i - 1]);
+			const [bx, by] = xy(line[i]);
+			const dx = bx - ax;
+			const dy = by - ay;
+			const len2 = dx * dx + dy * dy;
+			// Projection of the point (origin) onto the segment, clamped to its ends.
+			const t = len2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0;
+			const off = Math.hypot(ax + t * dx, ay + t * dy);
+			const len = Math.sqrt(len2);
+			if (off < best.offM) best = { alongM: along + t * len, offM: off };
+			along += len;
+		}
+	}
+	return best;
+}
+
+/** The point at `fraction` (0–1) of the route's length, e.g. 0.5 for its middle. */
+export function pointAlongRoute(
+	geometry: StageGeometry,
+	fraction: number
+): { lng: number; lat: number } | null {
+	const lines = geometry.coordinates.filter((l) => l.length > 0);
+	if (!lines.length) return null;
+	const total = lines.reduce((sum, l) => sum + lineLength(l), 0);
+	let left = total * Math.max(0, Math.min(1, fraction));
+	for (const line of lines) {
+		for (let i = 1; i < line.length; i++) {
+			const a = { lng: line[i - 1][0], lat: line[i - 1][1] };
+			const b = { lng: line[i][0], lat: line[i][1] };
+			const d = distance(a, b);
+			if (d > 0 && left <= d) {
+				const t = left / d;
+				return { lng: a.lng + t * (b.lng - a.lng), lat: a.lat + t * (b.lat - a.lat) };
+			}
+			left -= d;
+		}
+	}
+	const last = lines.at(-1)!.at(-1)!;
+	return { lng: last[0], lat: last[1] };
+}
+
+const lineLength = (line: number[][]) =>
+	line.reduce(
+		(sum, c, i) =>
+			i
+				? sum + distance({ lng: line[i - 1][0], lat: line[i - 1][1] }, { lng: c[0], lat: c[1] })
+				: 0,
+		0
+	);
+
 // Formatting (de-CH) -------------------------------------------------------
 
 const km = new Intl.NumberFormat('de-CH', { maximumFractionDigits: 1, minimumFractionDigits: 1 });

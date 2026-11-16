@@ -151,6 +151,30 @@
 				</div>
 			{/if}
 
+			{#if data.visits.length}
+				<div class="flex flex-col gap-2">
+					<h2 class="text-[32px] font-display leading-none">Unterwegs besucht</h2>
+					<ul class="flex flex-col border-t border-line">
+						{#each data.visits as v (`${v.slug}-${v.dayIndex}`)}
+							<li class="border-b border-line">
+								<a
+									href={resolve('/(app)/tschalps/[slug]', { slug: v.slug })}
+									class="flex flex-wrap items-baseline justify-between gap-x-3 py-3 hover:text-trail-dark"
+								>
+									<span>
+										<span class="font-semibold">{v.title}</span>
+										{#if v.note}<span class="text-ink-soft"> · {v.note}</span>{/if}
+									</span>
+									<span class="nums text-[13px] text-muted">
+										{v.year} · Tag {v.dayIndex}{v.date ? ` · ${formatShortDate(v.date)}` : ''}
+									</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
 			<p class="text-[13px] text-muted">
 				Erfasst{p.createdBy ? ` von ${p.createdBy}` : ''} am {stamp.format(
 					p.createdAt

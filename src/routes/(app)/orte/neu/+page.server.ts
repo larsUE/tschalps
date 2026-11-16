@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { resolve } from '$app/paths';
 import { db } from '#lib/server/db/index.ts';
-import { stage, tour } from '#lib/server/db/schema.ts';
+import { stage, stagePlace, tour } from '#lib/server/db/schema.ts';
 import { createPlace, placesNear, readPlaceFields } from '#lib/server/places.ts';
 import { canEditTour } from '#lib/server/tours.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
@@ -31,7 +31,9 @@ export const load: PageServerLoad = ({ url, locals }) => {
 	const s = linkableStage(url.searchParams.get('etappe'), locals.user!);
 	return {
 		values: { lat: url.searchParams.get('lat'), lng: url.searchParams.get('lng') },
-		stage: s && { id: s.id, dayIndex: s.dayIndex, title: s.title }
+		stage: s && { id: s.id, dayIndex: s.dayIndex, title: s.title },
+		/** Link as a place passed that day instead of as the night's place. */
+		stop: url.searchParams.get('als') === 'unterwegs'
 	};
 };
 
@@ -61,7 +63,11 @@ export const actions: Actions = {
 
 		const s = linkableStage(String(form.get('stageId') ?? '') || null, user);
 		if (s) {
-			db.update(stage).set({ nightPlaceId: id }).where(eq(stage.id, s.id)).run();
+			if (form.get('als') === 'unterwegs') {
+				db.insert(stagePlace).values({ stageId: s.id, placeId: id }).onConflictDoNothing().run();
+			} else {
+				db.update(stage).set({ nightPlaceId: id }).where(eq(stage.id, s.id)).run();
+			}
 			redirect(303, resolve('/(app)/tschalps/[slug]/bearbeiten', { slug: s.slug }));
 		}
 		redirect(303, resolve('/(app)/orte/[id]', { id }));

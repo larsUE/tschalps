@@ -2,7 +2,7 @@ import { and, eq, gte, isNull, lte } from 'drizzle-orm';
 import { formText } from './forms.ts';
 import { db } from '#lib/server/db/index.ts';
 import { PLACE_STATUSES, PLACE_TYPES, place, placeRevision } from '#lib/server/db/schema.ts';
-import { distance, wgs84ToLv95 } from '#lib/geo.ts';
+import { distance, locateOnRoute, wgs84ToLv95, type StageGeometry } from '#lib/geo.ts';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PlaceRow = typeof place.$inferSelect;
@@ -228,4 +228,34 @@ export function placesNear(lat: number, lng: number, radiusM: number, limit = 8)
 		.filter((p) => p.distanceM <= radiusM)
 		.sort((a, b) => a.distanceM - b.distanceM)
 		.slice(0, limit);
+}
+
+/**
+ * Places within `radiusM` of a route, in the order the route passes them.
+ * `bbox` is the route's bounding box ([minLng, minLat, maxLng, maxLat]).
+ */
+export function placesAlong(
+	geometry: StageGeometry,
+	bbox: [number, number, number, number],
+	radiusM: number
+) {
+	const [minLng, minLat, maxLng, maxLat] = bbox;
+	const dLat = radiusM / 111_320;
+	const dLng = radiusM / (111_320 * Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180));
+	return db
+		.select({ id: place.id, name: place.name, type: place.type, lat: place.lat, lng: place.lng })
+		.from(place)
+		.where(
+			and(
+				isNull(place.deletedAt),
+				gte(place.lat, minLat - dLat),
+				lte(place.lat, maxLat + dLat),
+				gte(place.lng, minLng - dLng),
+				lte(place.lng, maxLng + dLng)
+			)
+		)
+		.all()
+		.map((p) => ({ ...p, ...locateOnRoute(geometry, p) }))
+		.filter((p) => p.offM <= radiusM)
+		.sort((a, b) => a.alongM - b.alongM);
 }
