@@ -1,0 +1,1 @@
+ALTER TABLE `tour` ADD `status` text DEFAULT 'durchgefuehrt' NOT NULL;

@@ -20,7 +20,9 @@ export const actions: Actions = {
 		const { values, fields, errors } = readTourFields(form);
 		const gpx = await parseGpxUploads(form);
 		errors.push(...gpx.errors);
-		if (gpx.count === 0) errors.push('Bitte lade mindestens eine GPX-Datei hoch.');
+		// Plans and ideas may start without a route.
+		if (gpx.count === 0 && fields.status === 'durchgefuehrt')
+			errors.push('Bitte lade mindestens eine GPX-Datei hoch.');
 
 		if (errors.length) return fail(400, { values, errors });
 
@@ -30,7 +32,7 @@ export const actions: Actions = {
 			.values({ id, slug, ...fields, createdBy: user.id })
 			.run();
 		if (form.get('participated')) setParticipants(id, [user.id]);
-		await saveStages(id, gpx.result);
+		if (gpx.count) await saveStages(id, gpx.result);
 
 		redirect(303, resolve('/(app)/tschalps/[slug]', { slug }));
 	}

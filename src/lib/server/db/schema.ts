@@ -34,6 +34,8 @@ export type { StageGeometry } from '#lib/geo.ts';
 export const SEASONS = ['fruehling', 'sommer', 'herbst', 'winter'] as const;
 /** Type of tour: Schüler-, Lehrer-, Aurora- or Zusatztschalps. */
 export const TOUR_KINDS = ['schueler', 'lehrer', 'aurora', 'zusatz'] as const;
+/** Whether a tour took place, is planned or only an idea. */
+export const TOUR_STATUSES = ['durchgefuehrt', 'geplant', 'idee'] as const;
 /** SAC hiking scale. */
 export const DIFFICULTIES = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'] as const;
 
@@ -47,6 +49,7 @@ export const tour = sqliteTable('tour', {
 	startDate: text('start_date'), // ISO date (YYYY-MM-DD)
 	endDate: text('end_date'),
 	kind: text('kind', { enum: TOUR_KINDS }),
+	status: text('status', { enum: TOUR_STATUSES }).notNull().default('durchgefuehrt'),
 	/** Nights in huts instead of stables. */
 	huts: integer('huts', { mode: 'boolean' }).notNull().default(false),
 	summaryMd: text('summary_md'),

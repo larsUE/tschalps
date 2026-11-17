@@ -98,6 +98,14 @@ export const TOUR_KIND_LABELS = {
 
 export type TourKind = keyof typeof TOUR_KIND_LABELS;
 
+export const TOUR_STATUS_LABELS = {
+	durchgefuehrt: 'Durchgeführt',
+	geplant: 'Geplant',
+	idee: 'Idee'
+} as const;
+
+export type TourStatus = keyof typeof TOUR_STATUS_LABELS;
+
 /** SAC hiking scale, as used on Swiss trail signs and in guide books. */
 export const DIFFICULTY_LABELS = {
 	T1: 'T1 · Wandern',

@@ -17,6 +17,7 @@
 		PLACE_TYPE_COLORS,
 		SEASON_LABELS,
 		TOUR_KIND_LABELS,
+		TOUR_STATUS_LABELS,
 		TRAIL_COLOR,
 		formatDateRange,
 		formatShortDate,
@@ -137,6 +138,7 @@
 
 	const eyebrow = $derived(
 		[
+			data.tour.status !== 'durchgefuehrt' && TOUR_STATUS_LABELS[data.tour.status],
 			[data.tour.season && SEASON_LABELS[data.tour.season], data.tour.year]
 				.filter(Boolean)
 				.join(' '),

@@ -12,9 +12,11 @@
 	import {
 		SEASON_LABELS,
 		TOUR_KIND_LABELS,
+		TOUR_STATUS_LABELS,
 		formatDateRange,
 		yearColors,
-		type TourKind
+		type TourKind,
+		type TourStatus
 	} from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
@@ -26,6 +28,8 @@
 	let query = $state('');
 	let year = $state<number | null>(null);
 	let kind = $state<TourKind | null>(null);
+	/** Plans and ideas only on request. */
+	let status = $state<TourStatus | null>('durchgefuehrt');
 	/** Tour under the pointer, on the map or in the list. */
 	let hovered = $state<string | null>(null);
 	/** Tour shown in the card on the map. */
@@ -42,11 +46,18 @@
 		)
 	);
 
+	const statuses = $derived(
+		(Object.keys(TOUR_STATUS_LABELS) as TourStatus[]).filter((s) =>
+			data.tours.some((t) => t.status === s)
+		)
+	);
+
 	const visible = $derived(
 		data.tours.filter(
 			(t) =>
 				(year === null || t.year === year) &&
 				(kind === null || t.kind === kind) &&
+				(status === null || t.status === status) &&
 				(!query.trim() || `${t.title} ${t.year}`.toLowerCase().includes(query.trim().toLowerCase()))
 		)
 	);
@@ -59,6 +70,7 @@
 
 	const meta = (t: (typeof data.tours)[number]) =>
 		[
+			t.status !== 'durchgefuehrt' && TOUR_STATUS_LABELS[t.status],
 			formatDateRange(t.startDate, t.endDate) || (t.season && SEASON_LABELS[t.season]),
 			`${t.days} ${t.days === 1 ? 'Etappe' : 'Etappen'}`
 		]
@@ -154,6 +166,32 @@
 							onclick={() => (kind = kind === k ? null : k)}
 						>
 							{TOUR_KIND_LABELS[k].replace('tschalps', '')}
+						</button>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if statuses.length > 1}
+			<section class="flex flex-col gap-2.5">
+				<h2 class="eyebrow">Status</h2>
+				<div class="flex flex-wrap gap-1.5">
+					<button
+						type="button"
+						class="chip"
+						aria-pressed={status === null}
+						onclick={() => (status = null)}
+					>
+						Alle
+					</button>
+					{#each statuses as s (s)}
+						<button
+							type="button"
+							class="chip"
+							aria-pressed={status === s}
+							onclick={() => (status = status === s ? null : s)}
+						>
+							{TOUR_STATUS_LABELS[s]}
 						</button>
 					{/each}
 				</div>

@@ -9,7 +9,8 @@ import {
 	tour,
 	tourParticipant,
 	SEASONS,
-	TOUR_KINDS
+	TOUR_KINDS,
+	TOUR_STATUSES
 } from '#lib/server/db/schema.ts';
 import type { SessionUser } from '#lib/server/auth.ts';
 import { locateOnRoute, type StageGeometry } from '#lib/geo.ts';
@@ -50,6 +51,7 @@ export type TourFields = {
 	startDate: string | null;
 	endDate: string | null;
 	kind: (typeof TOUR_KINDS)[number] | null;
+	status: (typeof TOUR_STATUSES)[number];
 	huts: boolean;
 	summaryMd: string | null;
 };
@@ -64,12 +66,14 @@ export function readTourFields(form: FormData) {
 		startDate: str('startDate'),
 		endDate: str('endDate'),
 		kind: str('kind'),
+		status: str('status') || 'durchgefuehrt',
 		huts: form.get('huts') === 'on',
 		summaryMd: str('summaryMd')
 	};
 	const errors: string[] = [];
 	const year = Number(values.year);
-	const maxYear = new Date().getFullYear() + 1;
+	// Plans and ideas may lie further ahead.
+	const maxYear = new Date().getFullYear() + (values.status === 'durchgefuehrt' ? 1 : 10);
 
 	if (!values.title || values.title.length > 120)
 		errors.push('Bitte gib einen Titel an (max. 120 Zeichen).');
@@ -78,6 +82,7 @@ export function readTourFields(form: FormData) {
 	if (values.season && !SEASONS.includes(values.season as never))
 		errors.push('Ungültige Jahreszeit.');
 	if (values.kind && !TOUR_KINDS.includes(values.kind as never)) errors.push('Ungültige Art.');
+	if (!TOUR_STATUSES.includes(values.status as never)) errors.push('Ungültiger Status.');
 	for (const key of ['startDate', 'endDate'] as const) {
 		if (values[key] && !ISO_DATE.test(values[key])) errors.push('Ungültiges Datum.');
 	}
@@ -93,6 +98,7 @@ export function readTourFields(form: FormData) {
 		startDate: values.startDate || null,
 		endDate: values.endDate || null,
 		kind: (values.kind || null) as TourFields['kind'],
+		status: values.status as TourFields['status'],
 		huts: values.huts,
 		summaryMd: values.summaryMd || null
 	};
@@ -378,6 +384,7 @@ export function listTourSummaries() {
 			startDate: tour.startDate,
 			endDate: tour.endDate,
 			kind: tour.kind,
+			status: tour.status,
 			huts: tour.huts,
 			summaryMd: sql<number>`${tour.summaryMd} is not null and ${tour.summaryMd} != ''`,
 			days: sql<number>`count(${stage.id})`,

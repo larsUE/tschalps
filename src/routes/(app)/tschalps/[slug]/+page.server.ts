@@ -65,6 +65,7 @@ export const load: PageServerLoad = ({ params, locals }) => {
 			startDate: t.startDate,
 			endDate: t.endDate,
 			kind: t.kind,
+			status: t.status,
 			huts: t.huts,
 			summaryHtml: renderMarkdown(t.summaryMd)
 		},

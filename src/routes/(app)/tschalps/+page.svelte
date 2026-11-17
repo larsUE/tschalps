@@ -5,10 +5,12 @@
 	import {
 		SEASON_LABELS,
 		TOUR_KIND_LABELS,
+		TOUR_STATUS_LABELS,
 		formatDateRange,
 		yearColors,
 		type Season,
-		type TourKind
+		type TourKind,
+		type TourStatus
 	} from '#lib/labels.ts';
 	import type { PageProps } from './$types';
 
@@ -17,6 +19,8 @@
 	let query = $state('');
 	let season = $state<Season | null>(null);
 	let kind = $state<TourKind | null>(null);
+	/** Plans and ideas only on request. */
+	let status = $state<TourStatus | null>('durchgefuehrt');
 	let huts = $state(false);
 	/** Number of days ('' = any). */
 	let days = $state('');
@@ -31,17 +35,25 @@
 			data.tours.some((t) => t.kind === k)
 		)
 	);
+	const statuses = $derived(
+		(Object.keys(TOUR_STATUS_LABELS) as TourStatus[]).filter((s) =>
+			data.tours.some((t) => t.status === s)
+		)
+	);
 	const hasHuts = $derived(data.tours.some((t) => t.huts));
 	const dayCounts = $derived(
 		[...new Set(data.tours.map((t) => t.days).filter((d) => d > 0))].sort((a, b) => a - b)
 	);
-	const filtering = $derived(!!(query.trim() || season || kind || huts || days));
+	const filtering = $derived(
+		!!(query.trim() || season || kind || status !== 'durchgefuehrt' || huts || days)
+	);
 
 	const filtered = $derived(
 		data.tours.filter(
 			(t) =>
 				(!season || t.season === season) &&
 				(!kind || t.kind === kind) &&
+				(!status || t.status === status) &&
 				(!huts || t.huts) &&
 				(!days || t.days === Number(days)) &&
 				(!query.trim() || `${t.title} ${t.year}`.toLowerCase().includes(query.trim().toLowerCase()))
@@ -64,7 +76,8 @@
 			<span class="eyebrow text-trail-dark">Archiv</span>
 			<h1 class="text-[64px] font-display sm:text-[96px] lg:text-[112px]">Alle Tschalps</h1>
 			<p class="text-lg text-ink-soft">
-				{data.tours.length} Tschalps, nach Jahr sortiert. Jede Route als GPX zum Herunterladen.
+				{data.tours.filter((t) => t.status === 'durchgefuehrt').length} Tschalps, nach Jahr sortiert.
+				Jede Route als GPX zum Herunterladen.
 			</p>
 		</div>
 		<a href={resolve('/(app)/tschalps/neu')} class="btn btn-primary h-12 px-5">
@@ -127,6 +140,18 @@
 					{/each}
 				</div>
 			{/if}
+			{#if statuses.length > 1}
+				<div role="group" aria-label="Status" class="segmented border border-line-strong">
+					<button type="button" aria-pressed={status === null} onclick={() => (status = null)}>
+						Alle
+					</button>
+					{#each statuses as s (s)}
+						<button type="button" aria-pressed={status === s} onclick={() => (status = s)}>
+							{TOUR_STATUS_LABELS[s]}
+						</button>
+					{/each}
+				</div>
+			{/if}
 			{#if hasHuts}
 				<div class="segmented border border-line-strong">
 					<button type="button" aria-pressed={huts} onclick={() => (huts = !huts)}>
@@ -157,6 +182,7 @@
 					onclick={() => {
 						query = '';
 						season = kind = null;
+						status = 'durchgefuehrt';
 						huts = false;
 						days = '';
 					}}
@@ -234,6 +260,12 @@
 									<TrailMixBar mix={t.trailMix} class="max-w-80" />
 								{/if}
 								<div class="flex flex-wrap gap-1.5 text-[13px]">
+									{#if t.status !== 'durchgefuehrt'}
+										<span
+											class="rounded border border-dashed border-trail px-2 py-0.5 font-semibold text-trail-dark"
+											>{TOUR_STATUS_LABELS[t.status]}</span
+										>
+									{/if}
 									{#if t.days}
 										<span class="rounded border border-line bg-paper px-2 py-0.5">GPX</span>
 									{:else}

@@ -7,6 +7,8 @@
 
 	let { data, form }: PageProps = $props();
 	let pending = $state(false);
+	/** Plans and ideas may be saved without GPX. */
+	let status = $state('durchgefuehrt');
 </script>
 
 <svelte:head>
@@ -23,6 +25,10 @@
 		method="POST"
 		enctype="multipart/form-data"
 		class="card flex flex-col gap-6 p-5 sm:p-6"
+		onchange={(e) => {
+			const el = e.target as HTMLSelectElement;
+			if (el.name === 'status') status = el.value;
+		}}
 		use:enhance={() => {
 			pending = true;
 			return async ({ update }) => {
@@ -33,7 +39,7 @@
 	>
 		<FormErrors errors={form?.errors} />
 		<TourFields values={form?.values ?? { year: data.year }} />
-		<GpxInput required />
+		<GpxInput required={status === 'durchgefuehrt'} />
 		<label class="flex min-h-11 items-center gap-2.5">
 			<input type="checkbox" name="participated" checked class="check" />
 			Ich war dabei

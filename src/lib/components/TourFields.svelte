@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SEASON_LABELS, TOUR_KIND_LABELS } from '#lib/labels.ts';
+	import { SEASON_LABELS, TOUR_KIND_LABELS, TOUR_STATUS_LABELS } from '#lib/labels.ts';
 	import MarkdownHint from './MarkdownHint.svelte';
 
 	type Values = {
@@ -9,6 +9,7 @@
 		startDate?: string | null;
 		endDate?: string | null;
 		kind?: string | null;
+		status?: string | null;
 		huts?: boolean;
 		summaryMd?: string | null;
 	};
@@ -32,10 +33,18 @@
 		/>
 	</label>
 	<label class="sm:col-span-2">
+		<span class={label}>Status</span>
+		<select name="status" value={values.status ?? 'durchgefuehrt'} class={input}>
+			{#each Object.entries(TOUR_STATUS_LABELS) as [value, text] (value)}
+				<option {value}>{text}</option>
+			{/each}
+		</select>
+	</label>
+	<label class="sm:col-span-2">
 		<span class={label}>Jahr</span>
 		<input name="year" type="number" required min="1970" value={values.year ?? ''} class={input} />
 	</label>
-	<label class="sm:col-span-4">
+	<label class="sm:col-span-2">
 		<span class={label}>Jahreszeit</span>
 		<select name="season" value={values.season ?? ''} class={input}>
 			<option value="">–</option>
