@@ -14,7 +14,8 @@ export const GET: RequestHandler = () => {
 			geojson: stage.geojson,
 			slug: tour.slug,
 			title: tour.title,
-			year: tour.year
+			year: tour.year,
+			status: tour.status
 		})
 		.from(stage)
 		.innerJoin(tour, eq(tour.id, stage.tourId))
@@ -42,7 +43,9 @@ export const GET: RequestHandler = () => {
 					dayIndex: r.dayIndex,
 					slug: r.slug,
 					title: r.title,
-					year: r.year
+					year: r.year,
+					// Plans and ideas are drawn dashed.
+					dashed: r.status === 'durchgefuehrt' ? 0 : 1
 				},
 				geometry: r.geojson
 			}))

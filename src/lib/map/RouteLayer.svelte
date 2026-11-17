@@ -1,6 +1,12 @@
 <script lang="ts" module>
-	/** Flat properties of a route feature (MapLibre flattens nested objects in events). */
-	export type RouteProps = { key: string; color?: string } & Record<string, string | number>;
+	/**
+	 * Flat properties of a route feature (MapLibre flattens nested objects in events).
+	 * `dashed: 1` draws the line dashed (planned routes).
+	 */
+	export type RouteProps = { key: string; color?: string; dashed?: number } & Record<
+		string,
+		string | number
+	>;
 </script>
 
 <script lang="ts">
@@ -44,6 +50,12 @@
 	const layer = (suffix: string) => `${id}-${suffix}`;
 	onMount(() => {
 		const lineColor = ['coalesce', ['get', 'color'], color] as unknown as string;
+		const dashes = [
+			'case',
+			['==', ['get', 'dashed'], 1],
+			['literal', [1.5, 1.5]],
+			['literal', [1, 0]]
+		] as unknown as number[];
 		map.addSource(id, { type: 'geojson', data });
 		const layout = { 'line-cap': 'round', 'line-join': 'round' } as const;
 		// White casing keeps routes readable on aerial imagery.
@@ -59,7 +71,7 @@
 			type: 'line',
 			source: id,
 			layout,
-			paint: { 'line-color': lineColor, 'line-width': 4 }
+			paint: { 'line-color': lineColor, 'line-width': 4, 'line-dasharray': dashes }
 		});
 		map.addLayer({
 			id: layer('highlight'),
@@ -67,7 +79,7 @@
 			source: id,
 			layout,
 			filter: ['==', ['get', 'key'], ''],
-			paint: { 'line-color': lineColor, 'line-width': 7 }
+			paint: { 'line-color': lineColor, 'line-width': 7, 'line-dasharray': dashes }
 		});
 		// Casing for the highlighted route, so it sits above faded neighbours.
 		map.addLayer(
